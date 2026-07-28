@@ -1,0 +1,289 @@
+commit b5a5d5b1acfc9700a3940dcc26726882e8da81e7
+Author: wth <wth@wthdeMacBook-Pro.local>
+Date:   Wed Jul 29 00:50:45 2026 +0800
+
+    Initial: Haven v0.4 Enriched Indicators research project
+
+ README.md                                          |   123 +
+ config/haven_v0_1.yaml                             |    83 +
+ config/haven_v0_2_options_proxy.yaml               |   184 +
+ config/haven_v0_3_insurance_model.yaml             |    68 +
+ config/haven_v0_4_enriched_indicators.yaml         |   132 +
+ data/raw/cboe_skew_history.csv                     |  9193 +++++++++++++
+ data/raw/cboe_vix3m_history.csv                    |  4239 ++++++
+ data/raw/cboe_vix6m_history.csv                    |  4671 +++++++
+ data/raw/cboe_vix9d_history.csv                    |  3913 ++++++
+ data/raw/cboe_vix_history.csv                      |  9238 +++++++++++++
+ data/raw/cboe_vvix_history.csv                     |  5070 +++++++
+ data/raw/cboe_vxn_history.csv                      |  4245 ++++++
+ data/raw/fred_bamlh0a0hym2.csv                     |   794 ++
+ data/raw/fred_bamlh0a3hyc.csv                      |   794 ++
+ data/raw/fred_dfii10.csv                           |  6148 +++++++++
+ data/raw/fred_dgs2.csv                             | 13085 +++++++++++++++++++
+ data/raw/fred_dgs3mo.csv                           | 11715 +++++++++++++++++
+ data/raw/fred_nasdaq100.csv                        | 10584 +++++++++++++++
+ data/raw/fred_nfci.csv                             |  2899 ++++
+ .../nasdaq_aapl_stocks_2025-05-23_2026-07-27.json  |     1 +
+ .../nasdaq_abnb_stocks_2025-05-23_2026-07-27.json  |     1 +
+ .../nasdaq_adbe_stocks_2025-05-23_2026-07-27.json  |     1 +
+ .../nasdaq_adi_stocks_2025-05-23_2026-07-27.json   |     1 +
+ .../nasdaq_adp_stocks_2025-05-23_2026-07-27.json   |     1 +
+ .../nasdaq_adsk_stocks_2025-05-23_2026-07-27.json  |     1 +
+ .../nasdaq_aep_stocks_2025-05-23_2026-07-27.json   |     1 +
+ .../nasdaq_alab_stocks_2025-05-23_2026-07-27.json  |     1 +
+ .../nasdaq_alny_stocks_2025-05-23_2026-07-27.json  |     1 +
+ .../nasdaq_amat_stocks_2025-05-23_2026-07-27.json  |     1 +
+ .../nasdaq_amd_stocks_2025-05-23_2026-07-27.json   |     1 +
+ .../nasdaq_amgn_stocks_2025-05-23_2026-07-27.json  |     1 +
+ .../nasdaq_amzn_stocks_2025-05-23_2026-07-27.json  |     1 +
+ .../nasdaq_app_stocks_2025-05-23_2026-07-27.json   |     1 +
+ .../nasdaq_arm_stocks_2025-05-23_2026-07-27.json   |     1 +
+ .../nasdaq_asml_stocks_2025-05-23_2026-07-27.json  |     1 +
+ .../nasdaq_avgo_stocks_2025-05-23_2026-07-27.json  |     1 +
+ .../nasdaq_axon_stocks_2025-05-23_2026-07-27.json  |     1 +
+ .../nasdaq_bkng_stocks_2025-05-23_2026-07-27.json  |     1 +
+ .../nasdaq_bkr_stocks_2025-05-23_2026-07-27.json   |     1 +
+ .../nasdaq_ccep_stocks_2025-05-23_2026-07-27.json  |     1 +
+ .../nasdaq_cdns_stocks_2025-05-23_2026-07-27.json  |     1 +
+ .../nasdaq_ceg_stocks_2025-05-23_2026-07-27.json   |     1 +
+ .../nasdaq_cmcsa_stocks_2025-05-23_2026-07-27.json |     1 +
+ .../nasdaq_cost_stocks_2025-05-23_2026-07-27.json  |     1 +
+ .../nasdaq_cprt_stocks_2025-05-23_2026-07-27.json  |     1 +
+ .../nasdaq_crwd_stocks_2025-05-23_2026-07-27.json  |     1 +
+ .../nasdaq_crwv_stocks_2025-05-23_2026-07-27.json  |     1 +
+ .../nasdaq_csco_stocks_2025-05-23_2026-07-27.json  |     1 +
+ .../nasdaq_csx_stocks_2025-05-23_2026-07-27.json   |     1 +
+ .../nasdaq_ctas_stocks_2025-05-23_2026-07-27.json  |     1 +
+ .../nasdaq_dash_stocks_2025-05-23_2026-07-27.json  |     1 +
+ .../nasdaq_ddog_stocks_2025-05-23_2026-07-27.json  |     1 +
+ .../nasdaq_dxcm_stocks_2025-05-23_2026-07-27.json  |     1 +
+ .../nasdaq_ea_stocks_2025-05-23_2026-07-27.json    |     1 +
+ .../nasdaq_exc_stocks_2025-05-23_2026-07-27.json   |     1 +
+ .../nasdaq_fang_stocks_2025-05-23_2026-07-27.json  |     1 +
+ .../nasdaq_fast_stocks_2025-05-23_2026-07-27.json  |     1 +
+ .../nasdaq_fer_stocks_2025-05-23_2026-07-27.json   |     1 +
+ .../nasdaq_ftnt_stocks_2025-05-23_2026-07-27.json  |     1 +
+ .../nasdaq_gehc_stocks_2025-05-23_2026-07-27.json  |     1 +
+ .../nasdaq_gild_stocks_2025-05-23_2026-07-27.json  |     1 +
+ .../nasdaq_goog_stocks_2025-05-23_2026-07-27.json  |     1 +
+ .../nasdaq_googl_stocks_2025-05-23_2026-07-27.json |     1 +
+ .../nasdaq_hon_stocks_2025-05-23_2026-07-27.json   |     1 +
+ .../nasdaq_hona_stocks_2025-05-23_2026-07-27.json  |     1 +
+ .../nasdaq_idxx_stocks_2025-05-23_2026-07-27.json  |     1 +
+ .../nasdaq_intc_stocks_2025-05-23_2026-07-27.json  |     1 +
+ .../nasdaq_intu_stocks_2025-05-23_2026-07-27.json  |     1 +
+ .../nasdaq_isrg_stocks_2025-05-23_2026-07-27.json  |     1 +
+ .../nasdaq_kdp_stocks_2025-05-23_2026-07-27.json   |     1 +
+ .../nasdaq_khc_stocks_2025-05-23_2026-07-27.json   |     1 +
+ .../nasdaq_klac_stocks_2025-05-23_2026-07-27.json  |     1 +
+ .../nasdaq_lin_stocks_2025-05-23_2026-07-27.json   |     1 +
+ .../nasdaq_lite_stocks_2025-05-23_2026-07-27.json  |     1 +
+ .../nasdaq_lrcx_stocks_2025-05-23_2026-07-27.json  |     1 +
+ .../nasdaq_mar_stocks_2025-05-23_2026-07-27.json   |     1 +
+ .../nasdaq_mchp_stocks_2025-05-23_2026-07-27.json  |     1 +
+ .../nasdaq_mdlz_stocks_2025-05-23_2026-07-27.json  |     1 +
+ .../nasdaq_meli_stocks_2025-05-23_2026-07-27.json  |     1 +
+ .../nasdaq_meta_stocks_2025-05-23_2026-07-27.json  |     1 +
+ .../nasdaq_mnst_stocks_2025-05-23_2026-07-27.json  |     1 +
+ .../nasdaq_mpwr_stocks_2025-05-23_2026-07-27.json  |     1 +
+ .../nasdaq_mrvl_stocks_2025-05-23_2026-07-27.json  |     1 +
+ .../nasdaq_msft_stocks_2025-05-23_2026-07-27.json  |     1 +
+ .../nasdaq_mstr_stocks_2025-05-23_2026-07-27.json  |     1 +
+ .../nasdaq_mu_stocks_2025-05-23_2026-07-27.json    |     1 +
+ .../nasdaq_nbis_stocks_2025-05-23_2026-07-27.json  |     1 +
+ .../nasdaq_nflx_stocks_2025-05-23_2026-07-27.json  |     1 +
+ .../nasdaq_nvda_stocks_2025-05-23_2026-07-27.json  |     1 +
+ .../nasdaq_nxpi_stocks_2025-05-23_2026-07-27.json  |     1 +
+ .../nasdaq_odfl_stocks_2025-05-23_2026-07-27.json  |     1 +
+ .../nasdaq_orly_stocks_2025-05-23_2026-07-27.json  |     1 +
+ .../nasdaq_panw_stocks_2025-05-23_2026-07-27.json  |     1 +
+ .../nasdaq_payx_stocks_2025-05-23_2026-07-27.json  |     1 +
+ .../nasdaq_pcar_stocks_2025-05-23_2026-07-27.json  |     1 +
+ .../nasdaq_pdd_stocks_2025-05-23_2026-07-27.json   |     1 +
+ .../nasdaq_pep_stocks_2025-05-23_2026-07-27.json   |     1 +
+ .../nasdaq_pltr_stocks_2025-05-23_2026-07-27.json  |     1 +
+ .../nasdaq_pypl_stocks_2025-05-23_2026-07-27.json  |     1 +
+ .../nasdaq_qcom_stocks_2025-05-23_2026-07-27.json  |     1 +
+ .../nasdaq_regn_stocks_2025-05-23_2026-07-27.json  |     1 +
+ .../nasdaq_rklb_stocks_2025-05-23_2026-07-27.json  |     1 +
+ .../nasdaq_rop_stocks_2025-05-23_2026-07-27.json   |     1 +
+ .../nasdaq_rost_stocks_2025-05-23_2026-07-27.json  |     1 +
+ .../nasdaq_sbux_stocks_2025-05-23_2026-07-27.json  |     1 +
+ .../nasdaq_shop_stocks_2025-05-23_2026-07-27.json  |     1 +
+ .../nasdaq_sndk_stocks_2025-05-23_2026-07-27.json  |     1 +
+ .../nasdaq_snps_stocks_2025-05-23_2026-07-27.json  |     1 +
+ .../nasdaq_spcx_stocks_2025-05-23_2026-07-27.json  |     1 +
+ .../nasdaq_stx_stocks_2025-05-23_2026-07-27.json   |     1 +
+ .../nasdaq_ter_stocks_2025-05-23_2026-07-27.json   |     1 +
+ .../nasdaq_tmus_stocks_2025-05-23_2026-07-27.json  |     1 +
+ .../nasdaq_tri_stocks_2025-05-23_2026-07-27.json   |     1 +
+ .../nasdaq_tsla_stocks_2025-05-23_2026-07-27.json  |     1 +
+ .../nasdaq_ttwo_stocks_2025-05-23_2026-07-27.json  |     1 +
+ .../nasdaq_txn_stocks_2025-05-23_2026-07-27.json   |     1 +
+ .../nasdaq_vrtx_stocks_2025-05-23_2026-07-27.json  |     1 +
+ .../nasdaq_wbd_stocks_2025-05-23_2026-07-27.json   |     1 +
+ .../nasdaq_wday_stocks_2025-05-23_2026-07-27.json  |     1 +
+ .../nasdaq_wdc_stocks_2025-05-23_2026-07-27.json   |     1 +
+ .../nasdaq_wmt_stocks_2025-05-23_2026-07-27.json   |     1 +
+ .../nasdaq_xel_stocks_2025-05-23_2026-07-27.json   |     1 +
+ data/raw/nasdaq_bil_2016-07-25_2026-07-24.json     |     1 +
+ data/raw/nasdaq_bil_2016-07-25_2026-07-28.json     |     1 +
+ data/raw/nasdaq_bil_dividends.json                 |     1 +
+ data/raw/nasdaq_hyg_2016-07-25_2026-07-24.json     |     1 +
+ data/raw/nasdaq_hyg_2016-07-25_2026-07-28.json     |     1 +
+ data/raw/nasdaq_hyg_dividends.json                 |     1 +
+ data/raw/nasdaq_ief_2016-07-25_2026-07-24.json     |     1 +
+ data/raw/nasdaq_ief_2016-07-25_2026-07-28.json     |     1 +
+ data/raw/nasdaq_ief_dividends.json                 |     1 +
+ data/raw/nasdaq_nasdaq100_members_latest.json      |     1 +
+ data/raw/nasdaq_qew_2016-07-25_2026-07-24.json     |     1 +
+ data/raw/nasdaq_qew_dividends.json                 |     1 +
+ data/raw/nasdaq_qqew_2016-07-25_2026-07-24.json    |     1 +
+ data/raw/nasdaq_qqew_2016-07-25_2026-07-28.json    |     1 +
+ data/raw/nasdaq_qqew_dividends.json                |     1 +
+ data/raw/nasdaq_qqq_2016-07-25_2026-07-24.json     |     1 +
+ data/raw/nasdaq_qqq_2016-07-25_2026-07-28.json     |     1 +
+ data/raw/nasdaq_qqq_dividends.json                 |     1 +
+ data/raw/nasdaq_qqq_option_chain_latest.json       |     1 +
+ data/raw/nasdaq_rsp_2016-07-25_2026-07-24.json     |     1 +
+ data/raw/nasdaq_rsp_2016-07-25_2026-07-28.json     |     1 +
+ data/raw/nasdaq_rsp_dividends.json                 |     1 +
+ data/raw/nasdaq_spy_2016-07-25_2026-07-24.json     |     1 +
+ data/raw/nasdaq_spy_2016-07-25_2026-07-28.json     |     1 +
+ data/raw/nasdaq_spy_dividends.json                 |     1 +
+ data/raw/nasdaq_tqqq_2016-07-25_2026-07-24.json    |     1 +
+ data/raw/nasdaq_tqqq_2016-07-25_2026-07-28.json    |     1 +
+ data/raw/nasdaq_tqqq_dividends.json                |     1 +
+ data/raw/nasdaq_tqqq_option_chain_latest.json      |     1 +
+ integrations/hermes/haven-close-update.py          |    42 +
+ integrations/hermes/haven_market_model/__init__.py |    43 +
+ .../__pycache__/__init__.cpython-311.pyc           |   Bin 0 -> 2354 bytes
+ .../__pycache__/schemas.cpython-311.pyc            |   Bin 0 -> 3445 bytes
+ .../__pycache__/tools.cpython-311.pyc              |   Bin 0 -> 31997 bytes
+ integrations/hermes/haven_market_model/cli.py      |    93 +
+ integrations/hermes/haven_market_model/plugin.yaml |    15 +
+ integrations/hermes/haven_market_model/schemas.py  |   156 +
+ .../skills/haven-market-risk/SKILL.md              |    60 +
+ integrations/hermes/haven_market_model/tools.py    |   667 +
+ integrations/hermes/install.py                     |   197 +
+ outputs/ten_year_v0_1/account_risk_translation.csv |     7 +
+ outputs/ten_year_v0_1/daily_primary_qqq.csv        |  2516 ++++
+ outputs/ten_year_v0_1/daily_primary_tqqq.csv       |  2516 ++++
+ outputs/ten_year_v0_1/equity_curves.csv            |  2042 +++
+ .../haven_ten_year_backtest_report.md              |   235 +
+ outputs/ten_year_v0_1/metrics.csv                  |    12 +
+ outputs/ten_year_v0_1/panic_events.csv             |    12 +
+ outputs/ten_year_v0_1/qqq_equity_drawdown.png      |   Bin 0 -> 445598 bytes
+ outputs/ten_year_v0_1/research_dataset.csv         |  2516 ++++
+ outputs/ten_year_v0_1/run_manifest.json            |    29 +
+ .../ten_year_v0_1/score_components_exhaustion.csv  |  2516 ++++
+ outputs/ten_year_v0_1/score_components_greed.csv   |  2516 ++++
+ outputs/ten_year_v0_1/score_components_panic.csv   |  2516 ++++
+ .../ten_year_v0_1/score_components_panic_price.csv |  2516 ++++
+ .../score_components_premium_proxy.csv             |  2516 ++++
+ .../score_components_stabilization.csv             |  2516 ++++
+ outputs/ten_year_v0_1/score_history.csv            |  2516 ++++
+ outputs/ten_year_v0_1/scores_states_weights.png    |   Bin 0 -> 892655 bytes
+ outputs/ten_year_v0_1/sensitivity.csv              |    10 +
+ outputs/ten_year_v0_1/state_counts.csv             |    12 +
+ outputs/ten_year_v0_1/state_history.csv            |  2516 ++++
+ outputs/ten_year_v0_1/stress_periods.csv           |    19 +
+ outputs/ten_year_v0_1/tqqq_equity_drawdown.png     |   Bin 0 -> 513277 bytes
+ .../contract_granularity_sensitivity.csv           |     5 +
+ .../ten_year_v0_2_options_proxy/daily_qqq_full.csv |  2516 ++++
+ .../daily_tqqq_full.csv                            |  2516 ++++
+ .../ten_year_v0_2_options_proxy/equity_curves.csv  |  2516 ++++
+ .../greed_call_activation.png                      |   Bin 0 -> 642381 bytes
+ .../haven_options_proxy_backtest_report_v0.2.md    |   262 +
+ .../insurance_structure_sensitivity.csv            |     3 +
+ outputs/ten_year_v0_2_options_proxy/metrics.csv    |    17 +
+ .../option_pnl_attribution.png                     |   Bin 0 -> 214752 bytes
+ .../ten_year_v0_2_options_proxy/option_summary.csv |    10 +
+ .../option_trade_diagnostics.csv                   |     5 +
+ .../ten_year_v0_2_options_proxy/option_trades.csv  |  1519 +++
+ .../proxy_sensitivity.csv                          |    10 +
+ .../qqq_options_ablation.png                       |   Bin 0 -> 370993 bytes
+ .../ten_year_v0_2_options_proxy/run_manifest.json  |    41 +
+ .../score_components_exhaustion.csv                |  2516 ++++
+ .../score_components_greed.csv                     |  2057 +++
+ .../score_components_panic.csv                     |  2516 ++++
+ .../score_components_panic_price.csv               |  2516 ++++
+ .../score_components_premium_proxy.csv             |  2516 ++++
+ .../score_components_stabilization.csv             |  2516 ++++
+ .../ten_year_v0_2_options_proxy/score_history.csv  |  2516 ++++
+ .../ten_year_v0_2_options_proxy/state_history.csv  |  2516 ++++
+ .../ten_year_v0_2_options_proxy/stress_periods.csv |    28 +
+ .../tqqq_options_ablation.png                      |   Bin 0 -> 412609 bytes
+ .../insurance_candidate_trades.csv                 |  1405 ++
+ .../insurance_cost_grid.csv                        |    25 +
+ .../insurance_pareto_frontier.csv                  |     5 +
+ .../insurance_score_history.csv                    |  2516 ++++
+ .../recommended_full_daily.csv                     |  2515 ++++
+ .../recommended_full_option_trades.csv             |   136 +
+ .../recommended_manifest.json                      |     8 +
+ .../recommended_metrics.csv                        |     4 +
+ .../recommended_option_summary.csv                 |     4 +
+ .../recommended_stress_periods.csv                 |    10 +
+ outputs/ten_year_v0_3_insurance/run_manifest.json  |    58 +
+ .../csp_entry_gate_sensitivity.csv                 |     7 +
+ .../csp_entry_gate_stress.csv                      |    19 +
+ .../csp_entry_gate_summary.csv                     |     7 +
+ .../csp_panic_fraction_sensitivity.csv             |     5 +
+ .../csp_panic_fraction_stress.csv                  |    13 +
+ .../enriched_score_history.csv                     |  2516 ++++
+ .../ten_year_v0_4_enriched/headline_comparison.csv |     7 +
+ outputs/ten_year_v0_4_enriched/latest_scores.csv   |    27 +
+ .../live/current_snapshot.json                     |   181 +
+ .../live/live_shadow_history.csv                   |     2 +
+ .../live/nasdaq100_breadth_detail.csv              |   104 +
+ .../live/qqq_option_chain_snapshot.csv             |  7967 +++++++++++
+ .../ten_year_v0_4_enriched/live/x_topic_scores.csv |     1 +
+ outputs/ten_year_v0_4_enriched/metrics.csv         |    31 +
+ outputs/ten_year_v0_4_enriched/option_summary.csv  |     5 +
+ .../options_module_ablation_metrics.csv            |     6 +
+ .../options_module_ablation_stress.csv             |    16 +
+ .../options_module_ablation_summary.csv            |     6 +
+ outputs/ten_year_v0_4_enriched/run_manifest.json   |   113 +
+ .../ten_year_v0_4_enriched/score_diagnostics.csv   |     5 +
+ outputs/ten_year_v0_4_enriched/state_counts.csv    |    64 +
+ outputs/ten_year_v0_4_enriched/stress_periods.csv  |    31 +
+ outputs/ten_year_v0_4_enriched/v0_4_full_daily.csv |  2515 ++++
+ .../ten_year_v0_4_enriched/v0_4_option_trades.csv  |   142 +
+ requirements.txt                                   |     4 +
+ scripts/run_enriched_indicators_v0_4.py            |   533 +
+ scripts/run_insurance_model_v0_3.py                |   327 +
+ scripts/run_insurance_recommended_v0_3.py          |   122 +
+ scripts/run_live_shadow_v0_4.py                    |   366 +
+ scripts/run_options_proxy_v0_2.py                  |   537 +
+ scripts/run_ten_year.py                            |   259 +
+ src/haven/__init__.py                              |     7 +
+ src/haven/__pycache__/__init__.cpython-311.pyc     |   Bin 0 -> 439 bytes
+ src/haven/__pycache__/backtest.cpython-311.pyc     |   Bin 0 -> 18773 bytes
+ src/haven/__pycache__/covered_call.cpython-311.pyc |   Bin 0 -> 13944 bytes
+ src/haven/__pycache__/data.cpython-311.pyc         |   Bin 0 -> 17597 bytes
+ src/haven/__pycache__/enriched.cpython-311.pyc     |   Bin 0 -> 28641 bytes
+ src/haven/__pycache__/live_market.cpython-311.pyc  |   Bin 0 -> 32926 bytes
+ src/haven/__pycache__/model.cpython-311.pyc        |   Bin 0 -> 33637 bytes
+ .../__pycache__/options_proxy.cpython-311.pyc      |   Bin 0 -> 70040 bytes
+ src/haven/__pycache__/x_shadow.cpython-311.pyc     |   Bin 0 -> 10016 bytes
+ src/haven/backtest.py                              |   322 +
+ src/haven/covered_call.py                          |   317 +
+ src/haven/data.py                                  |   286 +
+ src/haven/enriched.py                              |   782 ++
+ src/haven/live_market.py                           |   672 +
+ src/haven/model.py                                 |   737 ++
+ src/haven/options_proxy.py                         |  1876 +++
+ src/haven/reporting.py                             |   364 +
+ src/haven/reporting_v0_2.py                        |   561 +
+ src/haven/x_shadow.py                              |   216 +
+ .../__pycache__/test_covered_call.cpython-311.pyc  |   Bin 0 -> 6257 bytes
+ tests/__pycache__/test_enriched.cpython-311.pyc    |   Bin 0 -> 13711 bytes
+ .../test_hermes_adapter.cpython-311.pyc            |   Bin 0 -> 7408 bytes
+ tests/__pycache__/test_model.cpython-311.pyc       |   Bin 0 -> 10371 bytes
+ .../__pycache__/test_options_proxy.cpython-311.pyc |   Bin 0 -> 8529 bytes
+ tests/test_covered_call.py                         |   139 +
+ tests/test_enriched.py                             |   255 +
+ tests/test_hermes_adapter.py                       |   137 +
+ tests/test_model.py                                |   182 +
+ tests/test_options_proxy.py                        |   158 +
+ 282 files changed, 177389 insertions(+)

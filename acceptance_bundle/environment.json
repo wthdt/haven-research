@@ -1,0 +1,15 @@
+{
+  "hermes_version": "v0.13.x (git 44cdf555a)",
+  "hermes_home": "/Users/wth/.hermes",
+  "hermes_binary": "/Users/wth/.local/bin/hermes",
+  "hermes_repo": "/Users/wth/.hermes/hermes-agent",
+  "hermes_git_commit": "44cdf555a83c1d8d605d095442e11efd58089533",
+  "python_version": "3.11.15",
+  "python_path": "/Users/wth/.hermes/hermes-agent/venv/bin/python3",
+  "server_timezone": "Asia/Shanghai",
+  "haven_research_root": "/Users/wth/haven_research_v0_4/haven_research",
+  "haven_git_branch": "feature/haven-v04-hermes",
+  "plugin_installed_at": "/Users/wth/.hermes/plugins/haven_market_model",
+  "plugin_enabled_in_config": true,
+  "config_path": "/Users/wth/.hermes/config.yaml"
+}

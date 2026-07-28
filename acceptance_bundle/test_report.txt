@@ -1,0 +1,29 @@
+test_contract_granularity_blocks_one_hundred_shares (test_covered_call.CoveredCallScreenTests.test_contract_granularity_blocks_one_hundred_shares) ... ok
+test_low_greed_blocks_call_entry (test_covered_call.CoveredCallScreenTests.test_low_greed_blocks_call_entry) ... ok
+test_screen_ranks_real_bid_candidates_but_never_executes (test_covered_call.CoveredCallScreenTests.test_screen_ranks_real_bid_candidates_but_never_executes) ... ok
+test_breadth_summary_has_data_guard (test_enriched.HavenEnrichedTests.test_breadth_summary_has_data_guard) ... ok
+test_enriched_scores_have_no_future_dependency (test_enriched.HavenEnrichedTests.test_enriched_scores_have_no_future_dependency) ... ok
+test_implied_volatility_round_trip (test_enriched.HavenEnrichedTests.test_implied_volatility_round_trip) ... ok
+test_news_model_is_shadow_only (test_enriched.HavenEnrichedTests.test_news_model_is_shadow_only) ... ok
+test_option_chain_summary_uses_observed_quotes (test_enriched.HavenEnrichedTests.test_option_chain_summary_uses_observed_quotes) ... ok
+test_put_and_call_richness_split_on_skew (test_enriched.HavenEnrichedTests.test_put_and_call_richness_split_on_skew) ... ok
+test_x_count_heat_detects_spike (test_enriched.HavenEnrichedTests.test_x_count_heat_detects_spike) ... ok
+test_close_message_and_deduplication (test_hermes_adapter.HermesAdapterTests.test_close_message_and_deduplication) ... ok
+test_plugin_registers_tools_skill_and_command (test_hermes_adapter.HermesAdapterTests.test_plugin_registers_tools_skill_and_command) ... ok
+test_status_handler_returns_json_and_preserves_no_trade_gate (test_hermes_adapter.HermesAdapterTests.test_status_handler_returns_json_and_preserves_no_trade_gate) ... ok
+test_event_requires_trigger_and_deployment_is_cumulative (test_model.HavenModelTests.test_event_requires_trigger_and_deployment_is_cumulative) ... ok
+test_insurance_score_has_no_future_dependency (test_model.HavenModelTests.test_insurance_score_has_no_future_dependency) ... ok
+test_recovery_gate_blocks_unconfirmed_full_deployment (test_model.HavenModelTests.test_recovery_gate_blocks_unconfirmed_full_deployment) ... ok
+test_rolling_percentile_has_no_future_dependency (test_model.HavenModelTests.test_rolling_percentile_has_no_future_dependency) ... ok
+test_signal_weight_is_applied_one_day_later (test_model.HavenModelTests.test_signal_weight_is_applied_one_day_later) ... ok
+test_black_scholes_put_call_parity (test_options_proxy.HavenOptionProxyTests.test_black_scholes_put_call_parity) ... ok
+test_expiry_payoff_and_delta (test_options_proxy.HavenOptionProxyTests.test_expiry_payoff_and_delta) ... ok
+test_greed_call_requires_joint_gate (test_options_proxy.HavenOptionProxyTests.test_greed_call_requires_joint_gate) ... ok
+test_iv_input_has_no_future_dependency (test_options_proxy.HavenOptionProxyTests.test_iv_input_has_no_future_dependency) ... ok
+test_monthly_expiry_respects_dte_window (test_options_proxy.HavenOptionProxyTests.test_monthly_expiry_respects_dte_window) ... ok
+test_put_and_call_use_separate_premium_scores (test_options_proxy.HavenOptionProxyTests.test_put_and_call_use_separate_premium_scores) ... ok
+
+----------------------------------------------------------------------
+Ran 24 tests in 1.466s
+
+OK

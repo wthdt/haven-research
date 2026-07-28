@@ -1,0 +1,19 @@
+{
+  "v0_3_full_base_scores": {
+    "expected_cagr": "~10.44%",
+    "expected_mdd": "~-24.29%",
+    "expected_sharpe": "~0.752",
+    "actual_cagr": 0.10444,
+    "actual_mdd": -0.24286,
+    "match": "PASS - aligns within rounding"
+  },
+  "v0_4_full_enriched_scores": {
+    "expected_cagr": "~11.44%",
+    "expected_mdd": "~-16.47%",
+    "expected_sharpe": "~0.949",
+    "actual_cagr": 0.11436,
+    "actual_mdd": -0.16466,
+    "match": "PASS - aligns within rounding"
+  },
+  "verdict": "Baseline verification PASSED"
+}

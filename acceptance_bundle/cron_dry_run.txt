@@ -1,0 +1,13 @@
+# Haven v0.4 Cron Configuration (DRAFT - NOT ENABLED)
+#
+# Schedule: 20 * * * 1-5 (every hour at :20 on weekdays)
+# Window: America/New_York 16:15-17:30
+# Script: haven-close-update.py (no-agent mode)
+# Dedup: Uses last_close_delivery.json ledger - same date = silent
+# Holidays: signal_date != today = silent
+# Outside window: silent
+#
+# To enable (after Codex approval):
+#   cd integrations/hermes && python3 install.py --update --create-cron --deliver telegram
+#
+# CURRENT STATUS: DISABLED (Cron not created)

@@ -1,0 +1,18 @@
+integrations/hermes/haven_market_model/__init__.py (plugin registration)
+integrations/hermes/haven_market_model/schemas.py (tool schemas)
+integrations/hermes/haven_market_model/tools.py (tool handlers)
+integrations/hermes/haven_market_model/cli.py (CLI subcommands)
+integrations/hermes/haven_market_model/plugin.yaml (plugin manifest)
+integrations/hermes/haven_market_model/skills/haven-market-risk/SKILL.md (skill definition)
+integrations/hermes/haven-close-update.py (cron wrapper)
+integrations/hermes/install.py (plugin installer)
+src/haven/*.py (engine source files)
+tests/*.py (test files)
+config/haven_v0_4_enriched_indicators.yaml (v0.4 config)
+scripts/run_live_shadow_v0_4.py (live shadow runner)
+
+External modifications (Hermes config):
+~/.hermes/config.yaml (added plugins.enabled section)
+~/.hermes/plugins/haven_market_model/ (plugin installed)
+~/.hermes/skills/haven-market-risk/ (skill added)
+~/.hermes/scripts/haven-close-update.py (cron script added)

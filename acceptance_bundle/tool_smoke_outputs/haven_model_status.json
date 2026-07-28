@@ -1,0 +1,150 @@
+{
+  "generated_at_et": "2026-07-28 11:32:54.908314-04:00",
+  "model": {
+    "status": "RANGE_CARRY",
+    "signal_date": "2026-07-27",
+    "effective_timing": "next trading day",
+    "event_active": false,
+    "deployment_fraction": 0.0,
+    "scores": {
+      "P": 23.362309917847284,
+      "P_coverage": 1.0,
+      "S": 44.48469509892834,
+      "S_coverage": 1.0,
+      "G": 28.6454100529101,
+      "G_coverage": 1.0,
+      "E": 57.81507936507933,
+      "E_coverage": 1.0,
+      "R": 67.69127450511579,
+      "R_coverage": 0.82,
+      "R_put": 70.62117827836391,
+      "R_put_coverage": 0.835,
+      "R_call": 64.76137073186764,
+      "R_call_coverage": 0.8049999999999999,
+      "I": 17.635720436200444,
+      "I_need": 13.721353341055233,
+      "I_affordability": 29.378821721636086,
+      "breadth_stress": 3.8888888888889053,
+      "breadth_recovery": 69.83730158730158,
+      "liquidity_stress": 32.58077113614481,
+      "liquidity_relief": 53.826117655950185,
+      "tail_stress": 22.47354497354496
+    }
+  },
+  "decision": {
+    "priority": "MODEL_STATE",
+    "data_guard": false,
+    "missing_scores": [],
+    "minimum_required_coverage": 1.0,
+    "research_only": true,
+    "automatic_execution_allowed": false,
+    "paper_live_modified": false,
+    "tqqq_paper_live_allowed": false,
+    "panic_reserve": "HOLD",
+    "panic_deployment_fraction": 0.0,
+    "sell_put": "WAIT",
+    "sell_put_reason": "v0.4 state/R_put/E safety gates not satisfied",
+    "sell_call": "WAIT",
+    "sell_call_gate": {
+      "status": "WAIT",
+      "eligible": false,
+      "reason": "RANGE_CARRY requires G≥50.0, E≥40.0, and R_call≥55.0",
+      "automation_allowed": false,
+      "maximum_researched_contracts": 0
+    },
+    "buy_insurance": "WAIT",
+    "news_model": {
+      "status": "SHADOW_NO_DATA",
+      "score": null,
+      "affects_position": false,
+      "minimum_live_days_before_review": 30
+    }
+  },
+  "guardrails": {
+    "research_only": true,
+    "signal_effective_timing": "next trading day",
+    "covered_call_automatic_execution": false,
+    "tqqq_paper_live": false,
+    "news_affects_position": false
+  },
+  "real_breadth_shadow": {
+    "as_of": "2026-07-27",
+    "status": "LIVE_SHADOW_READY",
+    "member_count": 103,
+    "valid_member_count": 103,
+    "coverage": 0.9805825242718447,
+    "percent_above_ma20": 44.66019417475729,
+    "percent_above_ma50": 46.53465346534654,
+    "percent_above_ma200": 62.37623762376238,
+    "advances": 66,
+    "declines": 37,
+    "unchanged": 0,
+    "advance_decline_net": 29,
+    "advance_decline_ratio": 1.7837837837837838,
+    "percent_new_high_252": 2.9702970297029703,
+    "percent_new_low_252": 0.0,
+    "high_low_net": 2.9702970297029703,
+    "field_coverage": {
+      "above_ma20": 1.0,
+      "above_ma50": 0.9805825242718447,
+      "above_ma200": 0.9805825242718447,
+      "advance_decline": 1.0,
+      "new_high": 0.9805825242718447,
+      "new_low": 0.9805825242718447
+    },
+    "historical_backtest_eligible": false,
+    "survivorship_note": "Current members are valid for the current snapshot only. They must not be used to reconstruct historical constituent breadth.",
+    "download_error_count": 0
+  },
+  "real_qqq_chain_shadow": {
+    "symbol": "QQQ",
+    "as_of": "2026-07-28",
+    "spot": 682.12,
+    "contracts": 7966,
+    "source": "Nasdaq delayed QQQ option-chain snapshot",
+    "historical_backtest_eligible": false,
+    "status": "LIVE_CHAIN_READY",
+    "coverage": 1.0,
+    "rate": 0.039599999999999996,
+    "dividend_yield": 0.004448396176625814,
+    "short_tenor": {
+      "dte": 31,
+      "atm_iv": 0.2633257920481264,
+      "put_25d_iv": 0.29624374164268374,
+      "call_25d_iv": 0.22693534318357705,
+      "put_skew_vol_points": 3.2917949594557347,
+      "call_skew_vol_points": -3.639044886454934
+    },
+    "long_tenor": {
+      "dte": 94,
+      "atm_iv": 0.2553469427488744,
+      "put_25d_iv": 0.28849791813641784,
+      "call_25d_iv": 0.21859635803848504,
+      "put_skew_vol_points": 3.3150975387543467,
+      "call_skew_vol_points": -3.675058471038933
+    },
+    "iv_term_slope_vol_points": -0.7978849299252022,
+    "median_relative_bid_ask_spread": 0.037121789982201905,
+    "put_call_volume_ratio": 0.9486418210649881,
+    "put_call_open_interest_ratio": 1.4489910365945373,
+    "contracts_with_valid_iv": 7174,
+    "contracts_total": 7966,
+    "pricing_note": "Bid/ask and open interest are observed delayed quotes; IV and delta are diagnostic Black-Scholes inversions, not vendor Greeks."
+  },
+  "N_news_shadow": {
+    "N": null,
+    "N_coverage": 0.0,
+    "N_status": "SHADOW_NO_DATA",
+    "N_direction": "UNKNOWN",
+    "N_affects_position": false,
+    "components": {},
+    "x": {
+      "status": "AUTH_NOT_CONFIGURED",
+      "x_heat": null,
+      "coverage": 0.0,
+      "topic_count": 6,
+      "affects_position": false
+    },
+    "minimum_live_days_before_review": 30
+  }
+}
