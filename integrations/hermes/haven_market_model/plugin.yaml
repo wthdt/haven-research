@@ -1,0 +1,15 @@
+name: haven-market-model
+version: 0.4.0
+description: Deterministic P/S/G/E/R/I/N market-risk and options research tools
+provides_tools:
+  - haven_model_status
+  - haven_refresh_close
+  - haven_screen_tqqq_calls
+  - haven_backtest_v04
+provides_commands:
+  - haven
+optional_env:
+  - name: X_BEARER_TOKEN
+    description: Optional X API bearer token for the non-executable N shadow model
+    url: https://developer.x.com/
+    secret: true

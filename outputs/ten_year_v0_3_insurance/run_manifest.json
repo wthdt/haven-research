@@ -1,0 +1,58 @@
+{
+  "model": "I insurance model v0.3",
+  "research_only": true,
+  "historical_option_chain_used": false,
+  "evaluation_start": "2016-07-25",
+  "evaluation_end": "2026-07-24",
+  "trading_days": 2514,
+  "candidate_count": 24,
+  "baseline": {
+    "start": "2016-07-25",
+    "end": "2026-07-24",
+    "trading_days": 2514,
+    "total_return": 1.6520101612824183,
+    "cagr": 0.10249066476151936,
+    "annual_volatility": 0.11347958597972539,
+    "sharpe_excess_bil": 0.7144890447540068,
+    "sortino_excess_bil": 1.0200733684605283,
+    "max_drawdown": -0.2484773310744025,
+    "daily_var_95": -0.010506801166214262,
+    "daily_cvar_95": -0.017902451783233263,
+    "worst_1d": -0.043119952689599006,
+    "worst_5d": -0.08921738776367605,
+    "worst_20d": -0.12310721757954768,
+    "worst_63d": -0.20668789365284868,
+    "average_asset_weight": 0.43478023070803495,
+    "average_cash_weight": 0.565219769291965,
+    "annual_turnover": 1.9337941659819233,
+    "transaction_cost_total": 0.009665000000000002,
+    "drawdown_peak_date": "2021-12-27",
+    "drawdown_trough_date": "2022-12-28",
+    "recovery_date": "2024-05-13",
+    "recovery_trading_days": 597,
+    "recovered": true
+  },
+  "data_metadata": {
+    "warmup_start": "2011-07-01",
+    "evaluation_start": "2016-07-25",
+    "evaluation_end": "2026-07-24",
+    "trading_days": 2515,
+    "warmup_rows": 1273,
+    "sources": {
+      "market_prices": "Nasdaq historical API",
+      "ndx": "FRED NASDAQ100",
+      "credit": "HYG/IEF market proxy for 10-year scores; FRED BAMLH0A0HYM2 retained when available and lagged 1 day",
+      "cash": "FRED DGS3MO lagged one day, less 0.1350% annual proxy expense",
+      "volatility": "Cboe VXN/VIX/VIX3M histories"
+    },
+    "latest_dates": {
+      "qqq": "2026-07-24",
+      "tqqq": "2026-07-24",
+      "ndx": "2026-07-24",
+      "vxn": "2026-07-24",
+      "credit": "2026-07-23",
+      "cash_yield": "2026-07-23"
+    }
+  },
+  "selection_note": "No candidate is promoted automatically. Select a robust cost plateau using cost, full-period drawdown, both subperiods, and all three named stress windows."
+}

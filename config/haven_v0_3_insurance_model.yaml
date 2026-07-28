@@ -1,0 +1,68 @@
+strategy:
+  name: "避风港全周期策略 v0.3（第六模型：保险）"
+  research_only: true
+  base_config: "haven_v0_2_options_proxy.yaml"
+
+insurance_model:
+  model_code: "I"
+  outputs:
+    - "I_need"
+    - "I_affordability"
+    - "I"
+  purpose: "限制尾部损失，并在危机中提供可继续低吸的现金购买力"
+  historical_option_chain_used: false
+  calibration_note: "VXN锚定Black-Scholes代理；参数仍需真实期权链复核"
+
+options_proxy:
+  insurance:
+    enabled: true
+    use_insurance_score: true
+    allowed_entry_states:
+      - "RISK_WARNING"
+      - "GREED_EXHAUSTING"
+      - "NORMAL_PARTICIPATION"
+      - "RANGE_CARRY"
+    trigger_i_need_min: 55.0
+    trigger_i_min: 48.0
+    trigger_i_affordability_min: 10.0
+    entry_r_proxy_max: 90.0
+    alert_memory_trading_days: 20
+
+    structure: "protective_put"
+    target_calendar_dte: 90
+    minimum_calendar_dte: 72
+    maximum_calendar_dte: 115
+    close_calendar_dte: 10
+    long_put_target_delta: 0.20
+    coverage_fraction: 1.00
+    dynamic_coverage_enabled: false
+
+    # 这是策略 sleeve 的费用预算，不是整个账户的费用比例。
+    maximum_net_debit_nav: 0.003
+    annual_gross_debit_nav: 0.010
+
+    minimum_hold_calendar_days: 75
+    recovery_s_min: 101.0
+    recovery_requires_event_inactive: true
+    risk_gone_p_max: 15.0
+    risk_gone_confirmation_days: 15
+    preserve_residual_while_risk_active: true
+    minimum_residual_fraction: 0.50
+    minimum_residual_contracts: 1
+
+    first_monetization_p: 70.0
+    first_profit_multiple: 1.00
+    first_total_close_fraction: 0.20
+    second_monetization_p: 85.0
+    second_total_close_fraction: 0.50
+    cooldown_trading_days: 5
+
+research_result:
+  evaluation_start: "2016-07-25"
+  evaluation_end: "2026-07-24"
+  trading_days: 2514
+  actual_average_annual_debit_rate: 0.0062
+  actual_max_single_entry_rate: 0.0030
+  annual_budget_hard_cap: 0.0100
+  budget_above_which_no_material_gain_was_observed: 0.0100
+  status: "Research only; not Paper/Live"
