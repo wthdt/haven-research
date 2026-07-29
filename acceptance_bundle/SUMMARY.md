@@ -1,57 +1,51 @@
-# Haven v0.4 Hermes Integration — Acceptance Bundle
+# Round 4 EVIDENCE_COMMIT — R_put/R_call engine-native decomposition fix
 
-## Codex Review: Round 2
+## Code
+- Commit: 62d00e2
+- Parent: 0667eb1 (acceptance bundle v3)
+- Changes: src/haven/enriched.py, tests/test_enriched.py (+285/-98 lines)
 
-### Status: All issues resolved, ready for Codex re-review
+## Audit Reconstruction Errors
+- R_put: 0.00e+00 (exact match)
+- R_call: 0.00e+00 (exact match)
+- R: 7.11e-15 (FP rounding, << 1e-6)
 
-## Fixes Applied
+## Audit Coverage
+- R_put: 4 entries (atm, skew, vol_of_vol, term)
+- R_call: 4 entries (atm, inverse_skew, vol_of_vol, term)
+- R: 2 entries (put, call legs)
+- I: 2 entries (I_need, affordability)
+- I_need: 3 entries (risk_level, risk_acceleration, fragility)
+- I_affordability: 1 entry (affordability)
 
-1. **DATA_GUARD** — `_REQUIRED_SCORE_CODES` expanded from (P,S,G,E) to (P,S,G,E,R,R_put,R_call). I-related scores (I,I_need,I_affordability) checked for missing. Coverage < 80% for any required score → all actions BLOCKED. New test: `test_low_put_coverage_triggers_data_guard_blocks_sell_put` validates R_put_coverage=0.50 → sell_put=BLOCKED.
+## include_audit Flag
+- False: returns (DataFrame, dict) — 2 items
+- True: returns (DataFrame, dict, dict) — 3 items
 
-2. **SKILL.md** — `platforms: [linux]` → `[linux, macos]`. Verified via `hermes skills list` on macOS showing `haven-market-risk` as enabled/source=local.
+## Tests (37/37 passed)
+- test_enriched.py: 14 tests (8 new audit-specific tests)
+- test_model.py: 5 tests
+- test_options_proxy.py: 7 tests
+- test_covered_call.py: 3 tests
+- test_hermes_adapter.py: 8 tests
 
-3. **Install script** — `install.py` now copies skill to `~/.hermes/skills/haven-market-risk/`. Install.md/rollback.md updated for consistency.
+## Six Entry Points (all exit 0)
+1. run_enriched_indicators_v0_4.py — ✅
+2. run_insurance_model_v0_3.py — ✅
+3. run_insurance_recommended_v0_3.py — ✅
+4. run_options_proxy_v0_2.py — ✅
+5. run_live_shadow_v0_4.py — ✅
+6. run_ten_year.py — ✅
 
-4. **Cron** — Schedule changed from `20 * * * 1-5` to `20 * * * *`. Script uses America/New_York weekday + 16:15-17:30 window — works in Asia/Shanghai TZ. Fridays fully covered.
+## Baseline Results (unchanged from 0667eb1)
+- v0.3 (QQQ_Haven_35_20_45, full_proxy): CAGR=10.4441%, MDD=-24.2861%, Sharpe=0.7519
+- v0.4 (QQQ_Haven_50_15_35, full_enriched_scores): CAGR=11.4361%, MDD=-16.4657%, Sharpe=0.9492
 
-5. **Delivery ledger** — `close_update_once_with_ledger()` uses two-phase pattern: PENDING ledger written AFTER stdout delivery, CONFIRMED ledger promoted when Hermes job shows last_delivery_error=None AND last_run_at advanced.
+## Cron Status
+Haven-related cron jobs: DISABLED (no haven cron entries found)
+Unrelated crons present: A-share weekly, micro-cap pharma, triple strategy shadow, paper-broker
 
-6. **Cleanup** — `.gitignore` added, `__pycache__/*.pyc` removed from git.
-
-7. **Engine-native calculation_audit** — The engine (`build_enriched_scores` in `src/haven/enriched.py`) now computes the audit natively with 3-day smoothing, v0.4 overlay breakdowns (P/S/G/E), R_put/R_call split, and I insurance components. The adapter (`_read_calculation_audit` in `tools.py`) retrieves it from the snapshot.
-
-8. **Cron delivery with job-state binding** — `close_update_once_with_ledger()` binds the pending ledger to `job_id` and `last_run_at` from Hermes cron jobs.json. Confirmation requires the same job to have advanced `last_run_at` with `last_status=ok` and `last_delivery_error=None`. This is Hermes-crash-safe.
-
-## Verified
-
-- **30/30 tests pass** (25 original + 5 new cron/delivery tests)
-  - test_low_put_coverage_triggers_data_guard_blocks_sell_put: new
-  - test_calculation_audit_regression: new
-  - test_close_message_and_deduplication: new (cron delivery)
-  - test_delivery_failure_retry: new (cron delivery)
-  - test_delivery_success_advances_last_run: new (cron delivery)
-  - test_duplicate_job_name_fails_safe: new (cron delivery)
-  - test_hermes_crash_before_delivery_retries: new (cron delivery)
-- v0.3 baseline: CAGR 10.44%, MDD -24.29%, Sharpe 0.752
-- v0.4 baseline: CAGR 11.44%, MDD -16.47%, Sharpe 0.949
-- 4 tools registered in Hermes: haven_model_status, haven_refresh_close, haven_screen_tqqq_calls, haven_backtest_v04
-- `/haven` command registered
-- TQQQ uses Bid → correct WAIT return
-- No secrets, broker connections, or outputs/latest writes
-- Skill loads on macOS (real hermes skills list)
-- DATA_GUARD blocks all actions on low coverage
-- **calculation_audit**: non-empty P_overlay, S_overlay, G_overlay, E_overlay, R_put, R_call, R, I entries
-- **Cron delivery**: all 7 scenarios verified (outside window, inside window, pending/retry, confirmed silent, crash no advance, duplicate job name, delivery success)
-
-## Cron Status: **DISABLED** (not created, not enabled)
-
-`hermes cron list` shows no "Haven close update" job. The job will be created by `install.py --create-cron --deliver telegram` after Codex approval.
-
-## Tool Smoke Outputs
-
-| File | Status |
-|------|--------|
-| haven_model_status.json | Valid JSON, non-empty calculation_audit (8 score breakdowns) |
-| haven_refresh_close.json | Valid JSON, non-empty calculation_audit, includes data_metadata |
-| haven_screen_tqqq_calls.json | Valid JSON, 5 TQQQ call candidates returned |
-| haven_backtest_v04.json | Valid JSON, backtest metrics for v0.3/v0.4 baselines |
+## Production Impact
+- No changes to production, Paper/Live, or broker
+- research_only=True
+- No option chain or broker orders sent
