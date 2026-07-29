@@ -156,7 +156,9 @@ def build_insurance_scores(
 def build_scores(
     data: pd.DataFrame,
     config: dict[str, Any],
-) -> tuple[pd.DataFrame, dict[str, pd.DataFrame]]:
+    *,
+    include_audit: bool = False,
+) -> tuple[pd.DataFrame, dict[str, pd.DataFrame]] | tuple[pd.DataFrame, dict[str, pd.DataFrame], dict[str, list[dict]]]:
     score_config = config["scores"]
     smooth = int(score_config["smoothing_days"])
     close = data["ndx_close"].astype(float)
@@ -542,23 +544,64 @@ def build_scores(
     ]
     for code, group, v_df, r_s, cov_s in group_configs:
         entries = _build_group_audit(group, v_df, r_s, cov_s)
+        if entries and not data.empty:
+            # Add pre-smooth raw score and smoothing window info
+            smooth = int(score_config["smoothing_days"])
+            raw_val = float(r_s.iloc[-1]) if pd.notna(r_s.iloc[-1]) else None
+            final_val = float(result[code].iloc[-1]) if code in result.columns and pd.notna(result[code].iloc[-1]) else None
+            smooth_window = []
+            for i in range(min(smooth, len(r_s))):
+                idx = -smooth + i
+                if idx < 0:
+                    idx_val = float(r_s.iloc[idx]) if pd.notna(r_s.iloc[idx]) else None
+                    smooth_window.append({
+                        "date": str(data.index[idx].date()),
+                        "raw_score": round(idx_val, 6) if idx_val is not None else None,
+                    })
+            entries.append({
+                "name": f"base_score",
+                "raw_indicator": raw_val,
+                "data_date": latest_date,
+                "source": group,
+                "transformation": f"sma({smooth}) of raw_score",
+                "normalized_value": final_val,
+                "nominal_weight": 1.0,
+                "effective_weight": 1.0,
+                "contribution": final_val,
+                "coverage": 1.0,
+                "pre_smooth_raw": round(raw_val, 6) if raw_val is not None else None,
+                "smoothing_window": smooth_window,
+            })
         if entries:
             audit[code] = entries
 
     # Insurance audit — breakdown from build_insurance_scores
     insurance_last = insurance_outputs.iloc[-1]
+    i_need_v = float(insurance_last["I_need"]) if pd.notna(insurance_last["I_need"]) else None
+    afford_v = float(insurance_last["affordability"]) if pd.notna(insurance_last["affordability"]) else None
+    rl_v = float(insurance_last["risk_level"]) if pd.notna(insurance_last["risk_level"]) else None
+    ra_v = float(insurance_last["risk_acceleration"]) if pd.notna(insurance_last["risk_acceleration"]) else None
+    fr_v = float(insurance_last["fragility"]) if pd.notna(insurance_last["fragility"]) else None
+
+    # I = 0.75 * I_need + 0.25 * affordability
+    i_available = sum(w for v, w in [(i_need_v is not None, 0.75), (afford_v is not None, 0.25)])
+    i_eff_need = 0.75 / i_available if i_available > 0.0 else 0.0
+    i_eff_aff = 0.25 / i_available if i_available > 0.0 else 0.0
+    i_contrib_need = (i_need_v * i_eff_need) if i_need_v is not None else None
+    i_contrib_aff = (afford_v * i_eff_aff) if afford_v is not None else None
+
     audit["I"] = [
         {
             "name": "I_need",
-            "raw_indicator": float(insurance_last["I_need"]) if pd.notna(insurance_last["I_need"]) else None,
+            "raw_indicator": float(insurance_last["risk_level"]) if pd.notna(insurance_last["risk_level"]) else None,
             "data_date": latest_date,
-            "source": "panic/greed/exhaustion composite",
+            "source": "P/G/E composite → risk_level/risk_acceleration/fragility",
             "transformation": "0.5*risk_level + 0.3*risk_acceleration + 0.2*fragility",
-            "normalized_value": float(insurance_last["I_need"]) if pd.notna(insurance_last["I_need"]) else None,
+            "normalized_value": i_need_v,
             "nominal_weight": 0.75,
-            "effective_weight": 1.0,
-            "contribution": None,
-            "coverage": 1.0,
+            "effective_weight": round(i_eff_need, 6),
+            "contribution": round(i_contrib_need, 6) if i_contrib_need is not None else None,
+            "coverage": 1.0 if i_need_v is not None else 0.0,
         },
         {
             "name": "affordability",
@@ -566,67 +609,82 @@ def build_scores(
             "data_date": latest_date,
             "source": "100 - premium_proxy",
             "transformation": "(100 - R_proxy).clip(0, 100)",
-            "normalized_value": float(insurance_last["affordability"]) if pd.notna(insurance_last["affordability"]) else None,
+            "normalized_value": afford_v,
             "nominal_weight": 0.25,
-            "effective_weight": 1.0,
-            "contribution": None,
-            "coverage": 1.0,
-        },
-    ]
-    audit["I_need"] = [
-        {
-            "name": "risk_level",
-            "raw_indicator": float(insurance_last["risk_level"]) if pd.notna(insurance_last["risk_level"]) else None,
-            "data_date": latest_date,
-            "source": "panic",
-            "transformation": "((P - 20) / 40 * 100).clip(0, 100)",
-            "normalized_value": float(insurance_last["risk_level"]) if pd.notna(insurance_last["risk_level"]) else None,
-            "nominal_weight": 0.50,
-            "effective_weight": 1.0,
-            "contribution": None,
-            "coverage": 1.0,
-        },
-        {
-            "name": "risk_acceleration",
-            "raw_indicator": float(insurance_last["risk_acceleration"]) if pd.notna(insurance_last["risk_acceleration"]) else None,
-            "data_date": latest_date,
-            "source": "panic",
-            "transformation": "(P - P.shift(5)).clip(0) / 20 * 100",
-            "normalized_value": float(insurance_last["risk_acceleration"]) if pd.notna(insurance_last["risk_acceleration"]) else None,
-            "nominal_weight": 0.30,
-            "effective_weight": 1.0,
-            "contribution": None,
-            "coverage": 1.0,
-        },
-        {
-            "name": "fragility",
-            "raw_indicator": float(insurance_last["fragility"]) if pd.notna(insurance_last["fragility"]) else None,
-            "data_date": latest_date,
-            "source": "exhaustion/greed",
-            "transformation": "0.6*E + 0.4*G",
-            "normalized_value": float(insurance_last["fragility"]) if pd.notna(insurance_last["fragility"]) else None,
-            "nominal_weight": 0.20,
-            "effective_weight": 1.0,
-            "contribution": None,
-            "coverage": 1.0,
-        },
-    ]
-    audit["I_affordability"] = [
-        {
-            "name": "affordability",
-            "raw_indicator": float(insurance_last["affordability"]) if pd.notna(insurance_last["affordability"]) else None,
-            "data_date": latest_date,
-            "source": "premium_proxy",
-            "transformation": "(100 - R_proxy).clip(0, 100)",
-            "normalized_value": float(insurance_last["affordability"]) if pd.notna(insurance_last["affordability"]) else None,
-            "nominal_weight": 1.0,
-            "effective_weight": 1.0,
-            "contribution": None,
-            "coverage": 1.0,
+            "effective_weight": round(i_eff_aff, 6),
+            "contribution": round(i_contrib_aff, 6) if i_contrib_aff is not None else None,
+            "coverage": 1.0 if afford_v is not None else 0.0,
         },
     ]
 
-    return result, components, audit
+    # I_need = 0.50 * risk_level + 0.30 * risk_acceleration + 0.20 * fragility
+    need_available = sum(w for v, w in [
+        (rl_v is not None, 0.50), (ra_v is not None, 0.30), (fr_v is not None, 0.20)
+    ])
+    need_base = need_available if need_available > 0.0 else 1.0
+    rl_eff = 0.50 / need_base; ra_eff = 0.30 / need_base; fr_eff = 0.20 / need_base
+    rl_contrib = (rl_v * rl_eff) if rl_v is not None else None
+    ra_contrib = (ra_v * ra_eff) if ra_v is not None else None
+    fr_contrib = (fr_v * fr_eff) if fr_v is not None else None
+
+    audit["I_need"] = [
+        {
+            "name": "risk_level",
+            "raw_indicator": float(insurance_last.get("risk_level", np.nan)) if pd.notna(insurance_last.get("risk_level", np.nan)) else None,
+            "data_date": latest_date,
+            "source": "panic",
+            "transformation": "((P - 20) / 40 * 100).clip(0, 100)",
+            "normalized_value": rl_v,
+            "nominal_weight": 0.50,
+            "effective_weight": round(rl_eff, 6),
+            "contribution": round(rl_contrib, 6) if rl_contrib is not None else None,
+            "coverage": 1.0 if rl_v is not None else 0.0,
+        },
+        {
+            "name": "risk_acceleration",
+            "raw_indicator": float(insurance_last.get("risk_acceleration", np.nan)) if pd.notna(insurance_last.get("risk_acceleration", np.nan)) else None,
+            "data_date": latest_date,
+            "source": "panic",
+            "transformation": "(P - P.shift(5)).clip(0) / 20 * 100",
+            "normalized_value": ra_v,
+            "nominal_weight": 0.30,
+            "effective_weight": round(ra_eff, 6),
+            "contribution": round(ra_contrib, 6) if ra_contrib is not None else None,
+            "coverage": 1.0 if ra_v is not None else 0.0,
+        },
+        {
+            "name": "fragility",
+            "raw_indicator": float(insurance_last.get("fragility", np.nan)) if pd.notna(insurance_last.get("fragility", np.nan)) else None,
+            "data_date": latest_date,
+            "source": "exhaustion/greed",
+            "transformation": "0.6*E + 0.4*G",
+            "normalized_value": fr_v,
+            "nominal_weight": 0.20,
+            "effective_weight": round(fr_eff, 6),
+            "contribution": round(fr_contrib, 6) if fr_contrib is not None else None,
+            "coverage": 1.0 if fr_v is not None else 0.0,
+        },
+    ]
+
+    # I_affordability = affordability (single component, weight 1.0)
+    audit["I_affordability"] = [
+        {
+            "name": "affordability",
+            "raw_indicator": afford_v,
+            "data_date": latest_date,
+            "source": "premium_proxy",
+            "transformation": "(100 - R_proxy).clip(0, 100)",
+            "normalized_value": afford_v,
+            "nominal_weight": 1.0,
+            "effective_weight": 1.0,
+            "contribution": afford_v if afford_v is not None else None,
+            "coverage": 1.0 if afford_v is not None else 0.0,
+        },
+    ]
+
+    if include_audit:
+        return result, components, audit
+    return result, components
 
 
 @dataclass

@@ -216,7 +216,7 @@ def main() -> None:
         data, enriched_metadata = attach_enriched_market_data(
             data, config, PROJECT_ROOT, force=force_market
         )
-        scores, components, audit = build_enriched_scores(data, config)
+        scores, components, audit = build_enriched_scores(data, config, include_audit=True)
         states = run_state_machine(scores, config)
         snapshot["model"] = _score_snapshot(scores, states)
         snapshot["calculation_audit"] = _clean_json(audit)
