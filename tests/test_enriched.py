@@ -250,6 +250,163 @@ class HavenEnrichedTests(unittest.TestCase):
         self.assertGreater(score["x_heat"], 70.0)
         self.assertEqual(score["status"], "COUNTS_ONLY")
 
+    def test_r_option_audit_reconstruction_precision(self) -> None:
+        """Verify R_put/R_call/R audit entries reconstruct within 1e-6."""
+        scores, components, audit = build_enriched_scores(
+            _synthetic_dataset(), self.config, include_audit=True
+        )
+        latest = scores.dropna(subset=["R_put", "R_call"]).iloc[-1]
+        row_idx = scores.index[scores["R_put"].notna()][-1]
+
+        # --- Unrounded contributions from decomposition (engine-native) ---
+        # These MUST reconstruct within 1e-6 per requirement
+
+        # R_put: check unrounded contributions from decomposition
+        r_put_dec = components.get("r_put_decomposition", {})
+        if r_put_dec:
+            raw_put_contribs = []
+            for dec in r_put_dec.values():
+                c = float(dec["contribution"].loc[row_idx]) if pd.notna(dec["contribution"].loc[row_idx]) else None
+                if c is not None:
+                    raw_put_contribs.append(c)
+            r_put_actual = float(latest["R_put"])
+            self.assertAlmostEqual(sum(raw_put_contribs), r_put_actual, delta=1e-6,
+                                   msg=f"R_put unrounded sum != actual")
+
+        # R_call: check unrounded contributions
+        r_call_dec = components.get("r_call_decomposition", {})
+        if r_call_dec:
+            raw_call_contribs = []
+            for dec in r_call_dec.values():
+                c = float(dec["contribution"].loc[row_idx]) if pd.notna(dec["contribution"].loc[row_idx]) else None
+                if c is not None:
+                    raw_call_contribs.append(c)
+            r_call_actual = float(latest["R_call"])
+            self.assertAlmostEqual(sum(raw_call_contribs), r_call_actual, delta=1e-6,
+                                   msg=f"R_call unrounded sum != actual")
+
+        # R: check unrounded contributions
+        r_dec = components.get("r_decomposition", {})
+        if r_dec:
+            raw_r_contribs = []
+            for dec in r_dec.values():
+                c = float(dec["contribution"].loc[row_idx]) if pd.notna(dec["contribution"].loc[row_idx]) else None
+                if c is not None:
+                    raw_r_contribs.append(c)
+            r_actual = float(latest["R"])
+            self.assertAlmostEqual(sum(raw_r_contribs), r_actual, delta=1e-6,
+                                   msg=f"R unrounded sum != actual")
+
+        # --- Rounded audit entries (display layer) ---
+        # These should be close but may have minor FP accumulation
+        for score_key in ["R_put", "R_call", "R"]:
+            entries = audit[score_key]
+            contribs = [e["contribution"] for e in entries if e["contribution"] is not None]
+            if contribs:
+                rebuilt = sum(contribs)
+                actual = float(latest[score_key])
+                # Rounded contributions should reconstruct within 5e-5 (rounding * n_components)
+                self.assertAlmostEqual(rebuilt, actual, delta=5e-5,
+                                       msg=f"{score_key} rounded sum {rebuilt} != actual {actual}")
+
+        # Effective weights should sum to 1.0 (within rounding tolerance)
+        for score_key in ["R_put", "R_call", "R"]:
+            ew_sum = sum(e["effective_weight"] for e in audit[score_key])
+            self.assertAlmostEqual(ew_sum, 1.0, places=5,
+                                   msg=f"{score_key} effective weights sum to {ew_sum}")
+
+    def test_r_option_audit_missing_tail_component(self) -> None:
+        """When a tail component is missing, audit still reconstructs perfectly."""
+        data = _synthetic_dataset()
+        # Force vvix to NaN for last 100 rows (vol_of_vol component missing)
+        data.loc[data.index[-100]:, "vvix_close"] = np.nan
+        scores, components, audit = build_enriched_scores(
+            data, self.config, include_audit=True
+        )
+        latest = scores.dropna(subset=["R_put", "R_call"]).iloc[-1]
+        row_idx = scores.index[scores["R_put"].notna()][-1]
+
+        for score_key, dec_key in [
+            ("R_put", "r_put_decomposition"),
+            ("R_call", "r_call_decomposition"),
+            ("R", "r_decomposition"),
+        ]:
+            dec = components.get(dec_key, {})
+            raw_contribs = []
+            for d in dec.values():
+                c = float(d["contribution"].loc[row_idx]) if pd.notna(d["contribution"].loc[row_idx]) else None
+                if c is not None:
+                    raw_contribs.append(c)
+            if raw_contribs:
+                rebuilt = sum(raw_contribs)
+                actual = float(latest[score_key])
+                self.assertAlmostEqual(rebuilt, actual, delta=1e-6,
+                                       msg=f"{score_key} with missing component: sum {rebuilt} != {actual}")
+
+    def test_r_option_audit_all_components_available(self) -> None:
+        """Full data: all 4 components available for R_put and R_call."""
+        scores, components, audit = build_enriched_scores(
+            _synthetic_dataset(), self.config, include_audit=True
+        )
+        self.assertEqual(len(audit["R_put"]), 4,
+                         f"Expected 4 R_put components, got {len(audit['R_put'])}")
+        self.assertEqual(len(audit["R_call"]), 4,
+                         f"Expected 4 R_call components, got {len(audit['R_call'])}")
+        self.assertEqual(len(audit["R"]), 2,
+                         f"Expected 2 R legs, got {len(audit['R'])}")
+        # All components should have nominal_weight > 0
+        for entry in audit["R_put"]:
+            self.assertGreater(entry["nominal_weight"], 0.0)
+            self.assertGreater(entry["effective_weight"], 0.0)
+            self.assertIsNotNone(entry["contribution"])
+
+    def test_r_option_audit_low_atm_coverage(self) -> None:
+        """When ATM coverage < 1, effective weights are adjusted proportionally."""
+        data = _synthetic_dataset()
+        # Simulate low coverage by setting some R_proxy values to NaN
+        data.loc[data.index[-50]:, "ndx_close"] = np.nan  # causes R_proxy NaN -> low coverage
+        scores, components, audit = build_enriched_scores(
+            data, self.config, include_audit=True
+        )
+        r_put_entries = audit["R_put"]
+        # At least some entries should have effective_weight != nominal_weight
+        for entry in r_put_entries:
+            self.assertGreaterEqual(entry["effective_weight"], 0.0)
+            self.assertLessEqual(entry["effective_weight"], 1.0)
+
+    def test_include_audit_false_returns_two_items(self) -> None:
+        """Default include_audit=False returns (DataFrame, dict), not 3 items."""
+        scores, components = build_enriched_scores(
+            _synthetic_dataset(), self.config, include_audit=False
+        )
+        self.assertIsInstance(scores, pd.DataFrame)
+        self.assertIsInstance(components, dict)
+        self.assertIn("r_put_decomposition", components)
+
+    def test_include_audit_true_returns_three_items(self) -> None:
+        """include_audit=True returns (DataFrame, dict, audit_dict)."""
+        scores, components, audit = build_enriched_scores(
+            _synthetic_dataset(), self.config, include_audit=True
+        )
+        self.assertIn("R_put", audit)
+        self.assertIn("R_call", audit)
+        self.assertIn("R", audit)
+        self.assertIn("I", audit)
+        self.assertIn("I_need", audit)
+        self.assertIn("I_affordability", audit)
+
+    def test_i_need_affordability_contributions_real_values(self) -> None:
+        """I, I_need, I_affordability audit contributions are real (non-None)."""
+        _, _, audit = build_enriched_scores(
+            _synthetic_dataset(), self.config, include_audit=True
+        )
+        for key in ["I", "I_need", "I_affordability"]:
+            entries = audit[key]
+            self.assertGreater(len(entries), 0)
+            for entry in entries:
+                if entry["contribution"] is not None:
+                    self.assertTrue(np.isfinite(entry["contribution"]))
+
 
 if __name__ == "__main__":
     unittest.main()

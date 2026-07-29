@@ -90,6 +90,53 @@ def _blend(
     )
 
 
+def _decompose_blend(
+    components: dict[str, tuple[pd.Series, float, pd.Series]],
+) -> dict[str, dict[str, pd.Series | float]]:
+    """Compute per-component effective weights matching _blend() exactly.
+
+    Returns dict: name -> {effective_weight, contribution, raw_score, nominal_weight}.
+    Each result is a Series over the same index as the inputs.
+
+    Guarantees: for each row,
+      sum(contribution_i) == _blend()[0]  (the blended score)
+      sum(effective_weight_i) == 1.0       (when any data available)
+    """
+    if not components:
+        return {}
+    index = next(iter(components.values()))[0].index
+    total_weight = sum(float(w) for _, w, _ in components.values())
+    available = _series(index, 0.0)
+    for score, weight, coverage in components.values():
+        cw = float(weight)
+        effective = (
+            coverage.astype(float).clip(0.0, 1.0)
+            * score.notna().astype(float)
+            * cw
+        )
+        available = available.add(effective, fill_value=0.0)
+    available_safe = available.replace(0.0, np.nan)
+
+    result: dict[str, dict[str, pd.Series | float]] = {}
+    for name, (score, weight, coverage) in components.items():
+        cw = float(weight)
+        effective = (
+            coverage.astype(float).clip(0.0, 1.0)
+            * score.notna().astype(float)
+            * cw
+        )
+        eff_w = effective / available_safe
+        raw_w = cw / max(total_weight, 1e-12)
+        contrib = score.fillna(0.0) * eff_w
+        result[name] = {
+            "effective_weight": eff_w,
+            "contribution": contrib,
+            "raw_score": score,
+            "nominal_weight": raw_w,
+        }
+    return result
+
+
 def _aligned_lagged(
     source: pd.Series,
     index: pd.DatetimeIndex,
@@ -407,7 +454,7 @@ def _tail_satellites(
     data: pd.DataFrame,
     base_scores: pd.DataFrame,
     config: dict[str, Any],
-) -> tuple[dict[str, pd.Series], dict[str, pd.DataFrame]]:
+) -> tuple[dict[str, pd.Series], dict[str, pd.DataFrame | dict]]:
     index = data.index
     smooth = int(config["scores"]["smoothing_days"])
     missing = _series(index)
@@ -467,32 +514,37 @@ def _tail_satellites(
     )
     term_coverage = term_richness.notna().astype(float)
 
-    r_put, r_put_cov = _blend(
-        {
-            "atm": (atm, 0.55, atm_cov),
-            "skew": (skew_richness, 0.25, skew_coverage),
-            "vol_of_vol": (vvix_richness, 0.10, vvix_coverage),
-            "term": (term_richness, 0.10, term_coverage),
-        }
-    )
-    r_call, r_call_cov = _blend(
-        {
-            "atm": (atm, 0.65, atm_cov),
-            "inverse_skew": (
-                100.0 - skew_richness,
-                0.15,
-                skew_coverage,
-            ),
-            "vol_of_vol": (vvix_richness, 0.10, vvix_coverage),
-            "term": (term_richness, 0.10, term_coverage),
-        }
-    )
-    r, r_cov = _blend(
-        {
-            "put": (r_put, 0.50, r_put_cov),
-            "call": (r_call, 0.50, r_call_cov),
-        }
-    )
+    r_put_blend = {
+        "atm": (atm, 0.55, atm_cov),
+        "skew": (skew_richness, 0.25, skew_coverage),
+        "vol_of_vol": (vvix_richness, 0.10, vvix_coverage),
+        "term": (term_richness, 0.10, term_coverage),
+    }
+    r_put, r_put_cov = _blend(r_put_blend)
+
+    r_call_blend = {
+        "atm": (atm, 0.65, atm_cov),
+        "inverse_skew": (
+            100.0 - skew_richness,
+            0.15,
+            skew_coverage,
+        ),
+        "vol_of_vol": (vvix_richness, 0.10, vvix_coverage),
+        "term": (term_richness, 0.10, term_coverage),
+    }
+    r_call, r_call_cov = _blend(r_call_blend)
+
+    r_blend = {
+        "put": (r_put, 0.50, r_put_cov),
+        "call": (r_call, 0.50, r_call_cov),
+    }
+    r, r_cov = _blend(r_blend)
+
+    # Decompositions — exact same inputs as _blend, for audit
+    r_put_dec = _decompose_blend(r_put_blend)
+    r_call_dec = _decompose_blend(r_call_blend)
+    r_dec = _decompose_blend(r_blend)
+
     return (
         {
             "tail_stress": tail_stress,
@@ -519,6 +571,9 @@ def _tail_satellites(
                 },
                 index=index,
             ),
+            "r_put_decomposition": r_put_dec,
+            "r_call_decomposition": r_call_dec,
+            "r_decomposition": r_dec,
         },
     )
 
@@ -537,7 +592,7 @@ def build_enriched_scores(
     *,
     disabled_overlays: Iterable[str] = (),
     include_audit: bool = False,
-) -> tuple[pd.DataFrame, dict[str, pd.DataFrame]] | tuple[pd.DataFrame, dict[str, pd.DataFrame], dict[str, list[dict]]]:
+) -> tuple[pd.DataFrame, dict[str, pd.DataFrame | dict]] | tuple[pd.DataFrame, dict[str, pd.DataFrame | dict], dict[str, list[dict]]]:
     """Build the causal v0.4 scores without allowing N to alter positions."""
 
     disabled = set(disabled_overlays)
@@ -687,8 +742,8 @@ def build_enriched_scores(
         if "tail" in disabled
         else tail["R_call_coverage"]
     )
-    r = 0.50 * r_put + 0.50 * r_call
-    r_cov = 0.50 * r_put_cov + 0.50 * r_call_cov
+    r = tail["R"] if "tail" not in disabled else base["R_proxy"]
+    r_cov = tail["R_coverage"] if "tail" not in disabled else base["R_proxy_coverage"]
     insurance = build_insurance_scores(p, g, e, r_put)
 
     # ── Build enriched audit ────────────────────────────────────────
@@ -707,84 +762,59 @@ def build_enriched_scores(
         if overlay_entries:
             audit[overlay_key] = overlay_entries
 
-    # R_put and R_call audit (enriched breakdown)
+    # R_put and R_call audit (using engine-native decomposition)
     row_idx = data.index[-1] if not data.empty else None
     if row_idx is not None:
-        atm_val = float(base["R_proxy"].loc[row_idx]) if pd.notna(base["R_proxy"].loc[row_idx]) else None
-        atm_cov_val = float(base["R_proxy_coverage"].loc[row_idx]) if pd.notna(base["R_proxy_coverage"].loc[row_idx]) else 0.0
-        skew_val = float(tail.get("skew_richness", pd.Series(dtype=float)).loc[row_idx]) if "skew_richness" in tail and pd.notna(tail["skew_richness"].loc[row_idx]) else None
-        vvix_val = float(tail.get("R_put", pd.Series(dtype=float)).loc[row_idx]) if False else None  # vvix_richness from tail
-        # Actually get vvix_richness from tail_components
-        vvix_rich = None
-        if "premium_enriched" in tail_components:
-            pe = tail_components["premium_enriched"]
-            if not pe.empty and "vvix_richness" in pe.columns:
-                vvix_rich = float(pe["vvix_richness"].iloc[-1]) if pd.notna(pe["vvix_richness"].iloc[-1]) else None
-        term_rich = None
-        if "premium_enriched" in tail_components:
-            pe = tail_components["premium_enriched"]
-            if not pe.empty and "term_richness" in pe.columns:
-                term_rich = float(pe["term_richness"].iloc[-1]) if pd.notna(pe["term_richness"].iloc[-1]) else None
-        skew_rich = None
-        if "premium_enriched" in tail_components:
-            pe = tail_components["premium_enriched"]
-            if not pe.empty and "skew_richness" in pe.columns:
-                skew_rich = float(pe["skew_richness"].iloc[-1]) if pd.notna(pe["skew_richness"].iloc[-1]) else None
+        def _dec_entry(
+            name: str,
+            dec: dict,
+            idx,
+            date_str: str,
+            nw: float,
+        ) -> dict:
+            eff_w = float(dec["effective_weight"].loc[idx]) if pd.notna(dec["effective_weight"].loc[idx]) else 0.0
+            raw = float(dec["raw_score"].loc[idx]) if pd.notna(dec["raw_score"].loc[idx]) else None
+            contrib = float(dec["contribution"].loc[idx]) if pd.notna(dec["contribution"].loc[idx]) else None
+            return {
+                "name": name,
+                "raw_indicator": raw,
+                "data_date": date_str,
+                "source": name,
+                "transformation": "weighted blend (decomposition from _blend)",
+                "normalized_value": raw,
+                "nominal_weight": nw,
+                "effective_weight": round(eff_w, 6),
+                "contribution": round(contrib, 6) if contrib is not None else None,
+                "coverage": 1.0 if raw is not None else 0.0,
+            }
 
         # R_put breakdown
-        r_put_entries = _build_r_option_audit(
-            "R_put",
-            {"atm": (atm_val, 0.55, atm_cov_val),
-             "skew": (skew_rich, 0.25, float(skew_rich is not None)),
-             "vol_of_vol": (vvix_rich, 0.10, float(vvix_rich is not None)),
-             "term": (term_rich, 0.10, float(term_rich is not None))},
-            float(r_put.loc[row_idx]) if pd.notna(r_put.loc[row_idx]) else None,
-            latest_date, smooth,
-        )
+        r_put_dec = tail_components.get("r_put_decomposition", {})
+        r_put_entries = []
+        for comp_name in ["atm", "skew", "vol_of_vol", "term"]:
+            if comp_name in r_put_dec:
+                nw = float(r_put_dec[comp_name].get("nominal_weight", 0.0))
+                r_put_entries.append(_dec_entry(comp_name, r_put_dec[comp_name], row_idx, latest_date, nw))
         audit["R_put"] = r_put_entries
 
         # R_call breakdown
-        inverse_skew = (100.0 - skew_rich) if skew_rich is not None else None
-        r_call_entries = _build_r_option_audit(
-            "R_call",
-            {"atm": (atm_val, 0.65, atm_cov_val),
-             "inverse_skew": (inverse_skew, 0.15, float(inverse_skew is not None)),
-             "vol_of_vol": (vvix_rich, 0.10, float(vvix_rich is not None)),
-             "term": (term_rich, 0.10, float(term_rich is not None))},
-            float(r_call.loc[row_idx]) if pd.notna(r_call.loc[row_idx]) else None,
-            latest_date, smooth,
-        )
+        r_call_dec = tail_components.get("r_call_decomposition", {})
+        r_call_entries = []
+        for comp_name in ["atm", "inverse_skew", "vol_of_vol", "term"]:
+            if comp_name in r_call_dec:
+                nw = float(r_call_dec[comp_name].get("nominal_weight", 0.0))
+                r_call_entries.append(_dec_entry(comp_name, r_call_dec[comp_name], row_idx, latest_date, nw))
         audit["R_call"] = r_call_entries
 
-        # R composite (50/50 put/call)
+        # R composite (put/call legs)
+        r_dec = tail_components.get("r_decomposition", {})
         r_val = float(r.loc[row_idx]) if pd.notna(r.loc[row_idx]) else None
-        r_cov_val = float(r_cov.loc[row_idx]) if pd.notna(r_cov.loc[row_idx]) else None
-        audit["R"] = [
-            {
-                "name": "put_leg",
-                "raw_indicator": float(r_put.loc[row_idx]) if pd.notna(r_put.loc[row_idx]) else None,
-                "data_date": latest_date,
-                "source": "R_put composite",
-                "transformation": "weighted blend of atm/skew/vvix/term",
-                "normalized_value": float(r_put.loc[row_idx]) if pd.notna(r_put.loc[row_idx]) else None,
-                "nominal_weight": 0.50,
-                "effective_weight": 0.50,
-                "contribution": float(r_put.loc[row_idx]) * 0.50 if pd.notna(r_put.loc[row_idx]) else None,
-                "coverage": 1.0 if pd.notna(r_put.loc[row_idx]) else 0.0,
-            },
-            {
-                "name": "call_leg",
-                "raw_indicator": float(r_call.loc[row_idx]) if pd.notna(r_call.loc[row_idx]) else None,
-                "data_date": latest_date,
-                "source": "R_call composite",
-                "transformation": "weighted blend of atm/inverse_skew/vvix/term",
-                "normalized_value": float(r_call.loc[row_idx]) if pd.notna(r_call.loc[row_idx]) else None,
-                "nominal_weight": 0.50,
-                "effective_weight": 0.50,
-                "contribution": float(r_call.loc[row_idx]) * 0.50 if pd.notna(r_call.loc[row_idx]) else None,
-                "coverage": 1.0 if pd.notna(r_call.loc[row_idx]) else 0.0,
-            },
-        ]
+        r_entries = []
+        for comp_name in ["put", "call"]:
+            if comp_name in r_dec:
+                nw = float(r_dec[comp_name].get("nominal_weight", 0.0))
+                r_entries.append(_dec_entry(comp_name, r_dec[comp_name], row_idx, latest_date, nw))
+        audit["R"] = r_entries
 
         # I insurance (enriched version using blended scores)
         insurance_last = insurance.iloc[-1]
