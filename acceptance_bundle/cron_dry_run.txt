@@ -1,13 +1,52 @@
-# Haven v0.4 Cron Configuration (DRAFT - NOT ENABLED)
+# Haven v0.4 Cron Dry-Run — Post-Fix Verification
 #
-# Schedule: 20 * * * 1-5 (every hour at :20 on weekdays)
-# Window: America/New_York 16:15-17:30
+# Schedule: 20 * * * * (every hour at :20, no day-of-week restriction)
 # Script: haven-close-update.py (no-agent mode)
-# Dedup: Uses last_close_delivery.json ledger - same date = silent
-# Holidays: signal_date != today = silent
-# Outside window: silent
-#
-# To enable (after Codex approval):
-#   cd integrations/hermes && python3 install.py --update --create-cron --deliver telegram
-#
+# Window filter: script uses America/New_York 16:15-17:30 + weekday check
+#   (not dependent on Hermes local timezone — works in Asia/Shanghai)
+# Dedup ledger: written AFTER stdout delivery (not before)
+#   → delivery failure = no ledger = retry on next window tick
+# 
 # CURRENT STATUS: DISABLED (Cron not created)
+#
+# ── Scenario 1: Outside window (e.g. ET 10:00 on Wednesday) ──
+# $ TZ=America/New_York python3 integrations/hermes/haven_market_model/cli.py close-update
+# → stdout empty (silent)
+#
+# ── Scenario 2: Holiday/Weekend (e.g. Saturday) ──
+# $ TZ=America/New_York python3 integrations/hermes/haven_market_model/cli.py close-update
+# → stdout empty (signal_date != today, or weekday >= 5)
+#
+# ── Scenario 3: During window on a US trading day ──
+# $ TZ=America/New_York python3 integrations/hermes/haven_market_model/cli.py close-update
+# → stdout: close update message (non-empty)
+#
+# ── Scenario 4: Dedup after successful delivery ──
+# (ledger written after stdout delivery in cli.py close-update handler)
+# Second run within same window after ledger written → stdout empty
+#
+# ── Scenario 5: Delivery failure → retry allowed ──
+# First run: message printed to stdout, ledger NOT yet written
+#   (ledger.write happens after print in cli.py close-update handler)
+# If cron delivery fails (Telegram error, network issue):
+#   ledger not written → next window tick → message again
+# Ledger only blocks after write_delivery_ledger() is called
+#
+# ── Verification commands (use in CI/dry-run test) ──
+# # Test outside window:
+# TZ=Asia/Shanghai python3 integrations/hermes/haven_market_model/cli.py close-update
+# # Test inside window (force):
+# python3 integrations/hermes/haven_market_model/cli.py close-update --force-window
+# # Verify ledger behavior:
+# PYTHONPATH=integrations/hermes python3 -c "
+# from haven_market_model.tools import close_update_once_with_ledger, write_delivery_ledger, has_delivery_for_signal
+# from datetime import datetime
+# from zoneinfo import ZoneInfo
+# t = datetime(2026, 7, 28, 16, 20, tzinfo=ZoneInfo('America/New_York'))
+# r = close_update_once_with_ledger(now_et=t)
+# print('No ledger → has message:', bool(r))
+# write_delivery_ledger('2026-07-28', now_et=t)
+# r2 = close_update_once_with_ledger(now_et=t)
+# print('After ledger → empty:', r2 == '')
+# print('has_delivery_for_signal:', has_delivery_for_signal('2026-07-28'))
+# "

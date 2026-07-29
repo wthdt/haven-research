@@ -8,8 +8,19 @@
   "python_path": "/Users/wth/.hermes/hermes-agent/venv/bin/python3",
   "server_timezone": "Asia/Shanghai",
   "haven_research_root": "/Users/wth/haven_research_v0_4/haven_research",
-  "haven_git_branch": "feature/haven-v04-hermes",
+  "haven_git_branch": "codex-review/haven-v04-hermes",
   "plugin_installed_at": "/Users/wth/.hermes/plugins/haven_market_model",
   "plugin_enabled_in_config": true,
-  "config_path": "/Users/wth/.hermes/config.yaml"
+  "config_path": "/Users/wth/.hermes/config.yaml",
+  "skill_installed_at": "/Users/wth/.hermes/skills/haven-market-risk",
+  "skill_readiness": "available (tested via real skill_view on macOS)",
+  "fixes_applied": [
+    "DATA_GUARD covers P,S,G,E,R,R_put,R_call coverage + I presence",
+    "SKILL.md platforms: [linux] → [linux, macos]",
+    "install.py copies skill to ~/.hermes/skills/",
+    "Cron schedule 20 * * * * (not 1-5), script filters America/New_York",
+    "Delivery ledger written AFTER stdout (not before) — retry on failure",
+    ".gitignore added, __pycache__ removed from git"
+  ],
+  "cron_enabled": false
 }

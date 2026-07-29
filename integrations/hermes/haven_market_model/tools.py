@@ -16,7 +16,9 @@ from zoneinfo import ZoneInfo
 
 PLUGIN_DIR = Path(__file__).resolve().parent
 _RUN_LOCK = threading.Lock()
-_REQUIRED_SCORE_CODES = ("P", "S", "G", "E")
+_REQUIRED_SCORE_CODES = ("P", "S", "G", "E", "R", "R_put", "R_call")
+# I-related scores: no _coverage field in model output, check presence only
+_I_MISSING_CODES = ("I", "I_need", "I_affordability")
 
 
 def _json_safe(value: Any) -> Any:
@@ -229,6 +231,11 @@ def _decision(snapshot: dict[str, Any]) -> dict[str, Any]:
         for code in _REQUIRED_SCORE_CODES
         if not math.isfinite(_float(scores.get(code)))
     ]
+    missing.extend(
+        code
+        for code in _I_MISSING_CODES
+        if not math.isfinite(_float(scores.get(code)))
+    )
     data_guard = (
         "DATA_GUARD" in state
         or bool(missing)
@@ -614,6 +621,12 @@ def close_update_once(
     now_et: datetime | None = None,
     force_window: bool = False,
 ) -> str:
+    """Generate a close update message, or '' if outside window/holiday.
+
+    Does NOT check or write the delivery ledger — the caller (cron wrapper
+    or test) is responsible for dedup and ledger management so that the
+    ledger is only written after the message is successfully delivered.
+    """
     current = now_et or datetime.now(ZoneInfo("America/New_York"))
     if current.tzinfo is None:
         current = current.replace(tzinfo=ZoneInfo("America/New_York"))
@@ -635,28 +648,78 @@ def close_update_once(
     ):
         return ""
 
-    ledger_path = _state_dir() / "last_close_delivery.json"
-    if ledger_path.exists():
-        try:
-            ledger = json.loads(ledger_path.read_text(encoding="utf-8"))
-        except (OSError, ValueError):
-            ledger = {}
-        if ledger.get("signal_date") == signal_date:
-            return ""
+    return format_close_message(snapshot)
 
-    message = format_close_message(snapshot)
+
+def close_update_once_with_ledger(
+    *,
+    now_et: datetime | None = None,
+    force_window: bool = False,
+) -> str:
+    """Like close_update_once but checks delivery ledger for dedup.
+
+    The ledger is NOT written here — the caller writes it after a
+    successful delivery. This ensures retries on delivery failure.
+    """
+    current = now_et or datetime.now(ZoneInfo("America/New_York"))
+    if current.tzinfo is None:
+        current = current.replace(tzinfo=ZoneInfo("America/New_York"))
+    else:
+        current = current.astimezone(ZoneInfo("America/New_York"))
+    inside_window = (
+        current.weekday() < 5
+        and time(16, 15) <= current.time().replace(tzinfo=None) <= time(17, 30)
+    )
+    if not force_window and not inside_window:
+        return ""
+
+    snapshot = _refresh_snapshot()
+    model = dict(snapshot.get("model") or {})
+    signal_date = str(model.get("signal_date") or "")
+    if (
+        not force_window
+        and signal_date != str(current.date())
+    ):
+        return ""
+
+    if has_delivery_for_signal(signal_date):
+        return ""
+
+    return signal_date + "||" + format_close_message(snapshot)
+
+
+def write_delivery_ledger(
+    signal_date: str,
+    generated_at_et: str | None = None,
+    *,
+    now_et: datetime | None = None,
+) -> None:
+    """Write the delivery ledger after a successful close-update delivery."""
+    current = now_et or datetime.now(ZoneInfo("America/New_York"))
+    ledger_path = _state_dir() / "last_close_delivery.json"
     ledger_path.write_text(
         _dumps(
             {
                 "signal_date": signal_date,
-                "generated_at_et": snapshot.get("generated_at_et"),
+                "generated_at_et": generated_at_et,
                 "recorded_at_et": current.isoformat(),
             }
         )
         + "\n",
         encoding="utf-8",
     )
-    return message
+
+
+def has_delivery_for_signal(signal_date: str) -> bool:
+    """Check whether the delivery ledger already records this signal_date."""
+    ledger_path = _state_dir() / "last_close_delivery.json"
+    if not ledger_path.exists():
+        return False
+    try:
+        ledger = json.loads(ledger_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return False
+    return ledger.get("signal_date") == signal_date
 
 
 HANDLERS = {

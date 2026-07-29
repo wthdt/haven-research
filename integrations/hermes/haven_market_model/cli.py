@@ -8,22 +8,24 @@ from pathlib import Path
 
 if __package__:
     from .tools import (
-        close_update_once,
+        close_update_once_with_ledger,
         handle_backtest_v04,
         handle_model_status,
         handle_refresh_close,
         handle_screen_tqqq_calls,
+        write_delivery_ledger,
     )
 else:
     plugin_parent = Path(__file__).resolve().parent.parent
     if str(plugin_parent) not in sys.path:
         sys.path.insert(0, str(plugin_parent))
     from haven_market_model.tools import (  # type: ignore
-        close_update_once,
+        close_update_once_with_ledger,
         handle_backtest_v04,
         handle_model_status,
         handle_refresh_close,
         handle_screen_tqqq_calls,
+        write_delivery_ledger,
     )
 
 
@@ -67,9 +69,15 @@ def main() -> int:
     elif args.command == "refresh":
         print(handle_refresh_close({}))
     elif args.command == "close-update":
-        message = close_update_once(force_window=args.force_window)
-        if message:
-            print(message)
+        result = close_update_once_with_ledger(force_window=args.force_window)
+        if result:
+            if "||" in result:
+                signal_date, message = result.split("||", 1)
+                print(message)
+                # Write ledger AFTER printing (delivery attempted)
+                write_delivery_ledger(signal_date)
+            else:
+                print(result)
     elif args.command == "screen-tqqq-calls":
         payload = {
             "shares": args.shares,

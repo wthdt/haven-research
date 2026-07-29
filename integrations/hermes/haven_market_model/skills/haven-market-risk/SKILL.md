@@ -4,7 +4,7 @@ description: Use the deterministic Haven v0.4 P/S/G/E/R/I/N model to answer curr
 version: 0.4.0
 author: zizi
 license: Proprietary
-platforms: [linux]
+platforms: [linux, macos]
 metadata:
   hermes:
     tags: [Finance, Risk, Options, TQQQ, Nasdaq]

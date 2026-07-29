@@ -130,6 +130,14 @@ def main() -> int:
         scripts_dir / "haven-close-update.py",
     )
 
+    # Copy skill to ~/.hermes/skills/<name>/ so the agent discovers it
+    skills_dir = hermes_home / "skills"
+    source_skill = source_plugin / "skills" / "haven-market-risk"
+    target_skill = skills_dir / "haven-market-risk"
+    if target_skill.exists():
+        shutil.rmtree(target_skill)
+    shutil.copytree(source_skill, target_skill)
+
     missing = [
         package
         for package in ["pandas", "numpy", "matplotlib", "yaml"]
@@ -167,7 +175,7 @@ def main() -> int:
                     "hermes",
                     "cron",
                     "create",
-                    "20 * * * 1-5",
+                    "20 * * * *",
                     "--no-agent",
                     "--script",
                     "haven-close-update.py",

@@ -22,12 +22,20 @@ def main() -> int:
     if not cli.exists():
         print(f"Haven cron adapter not found: {cli}", file=sys.stderr)
         return 2
+
+    # Add plugin parent to PYTHONPATH so relative imports in cli.py work
+    env = {**os.environ}
+    plugin_parent = str(cli.parent.parent)
+    pythonpath = env.get("PYTHONPATH", "")
+    env["PYTHONPATH"] = f"{plugin_parent}:{pythonpath}" if pythonpath else plugin_parent
+
     completed = subprocess.run(
         [sys.executable, str(cli), "close-update"],
         text=True,
         capture_output=True,
         timeout=1800,
         check=False,
+        env=env,
     )
     if completed.stdout:
         print(completed.stdout, end="")
