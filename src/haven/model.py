@@ -85,14 +85,14 @@ def _adx(
 def _weighted_score(
     components: dict[str, tuple[pd.Series, float]],
     smoothing_days: int,
-) -> tuple[pd.Series, pd.Series, pd.DataFrame]:
+) -> tuple[pd.Series, pd.Series, pd.DataFrame, pd.Series]:
     values = pd.DataFrame({name: value for name, (value, _) in components.items()})
     weights = pd.Series({name: weight for name, (_, weight) in components.items()})
     available_weight = values.notna().mul(weights, axis=1).sum(axis=1)
     numerator = values.mul(weights, axis=1).sum(axis=1, min_count=1)
     raw_score = numerator / available_weight.replace(0.0, np.nan)
     score = raw_score.rolling(smoothing_days, min_periods=1).mean()
-    return score.clip(0.0, 100.0), available_weight, values
+    return score.clip(0.0, 100.0), available_weight, values, raw_score
 
 
 def _pct(
@@ -200,6 +200,65 @@ def build_scores(
         1.0 - credit_proxy / credit_proxy.rolling(252).max()
     )
 
+    # ── Component metadata for audit building ──────────────────────
+    # Maps (group, component_name) -> (source, transformation)
+    _AUDIT_SRC: dict[str, dict[str, tuple[str, str]]] = {
+        "panic": {
+            "drawdown_63": ("ndx_close", "pct_rank(1260d) → stress_score (clip 0-100, map 50-100→0-100)"),
+            "drawdown_252": ("ndx_close", "pct_rank(1260d) → stress_score (clip 0-100, map 50-100→0-100)"),
+            "below_ma200": ("ndx_close", "pct_rank(1260d) → stress_score (clip 0-100, map 50-100→0-100)"),
+            "negative_return_5": ("ndx_close", "pct_rank(1260d) → stress_score (clip 0-100, map 50-100→0-100)"),
+            "vxn_level": ("vxn_close", "pct_rank(1260d) → stress_score (clip 0-100, map 50-100→0-100)"),
+            "vxn_change_5": ("vxn_close", "pct_rank(1260d) → stress_score (clip 0-100, map 50-100→0-100)"),
+            "breadth_rel_20": ("rsp_close/spy_close", "short pct_rank(1260d) → stress_score (clip 0-100, map 50-100→0-100)"),
+            "breadth_rel_63": ("rsp_close/spy_close", "short pct_rank(1260d) → stress_score (clip 0-100, map 50-100→0-100)"),
+            "credit_stress_level": ("credit_proxy", "short pct_rank(1260d) → stress_score (clip 0-100, map 50-100→0-100)"),
+            "credit_widening": ("credit_proxy", "short pct_rank(1260d) → stress_score (clip 0-100, map 50-100→0-100)"),
+            "vix_term_stress": ("vix_close/vix3m_close", "pct_rank(1260d) → stress_score (clip 0-100, map 50-100→0-100)"),
+        },
+        "stabilization": {
+            "return_5": ("ndx_close", "pct_rank(1260d)"),
+            "return_10": ("ndx_close", "pct_rank(1260d)"),
+            "above_ma10": ("ndx_close", "pct_rank(1260d)"),
+            "above_ma20": ("ndx_close", "pct_rank(1260d)"),
+            "vxn_cooling": ("vxn_close", "pct_rank(1260d)"),
+            "vxn_off_high": ("vxn_close", "pct_rank(1260d)"),
+            "breadth_rel_5": ("rsp_close/spy_close", "short pct_rank(1260d)"),
+            "breadth_rel_20": ("rsp_close/spy_close", "short pct_rank(1260d)"),
+            "credit_narrowing": ("credit_proxy", "short pct_rank(1260d)"),
+            "no_new_low_5": ("ndx_close", "raw bool → 0/100"),
+        },
+        "greed": {
+            "return_20": ("ndx_close", "pct_rank(1260d)"),
+            "return_63": ("ndx_close", "pct_rank(1260d)"),
+            "above_ma20": ("ndx_close", "pct_rank(1260d)"),
+            "low_vxn": ("vxn_close", "pct_rank(1260d)"),
+            "term_contango": ("vix_close/vix3m_close", "pct_rank(1260d)"),
+            "above_ma200": ("ndx_close", "pct_rank(1260d)"),
+            "return_252": ("ndx_close", "pct_rank(1260d)"),
+            "breadth_concentration_20": ("rsp_close/spy_close", "short pct_rank(1260d)"),
+            "breadth_concentration_63": ("rsp_close/spy_close", "short pct_rank(1260d)"),
+            "rsi": ("ndx_close", "pct_rank(1260d)"),
+            "up_day_share": ("ndx_close", "pct_rank(1260d)"),
+        },
+        "exhaustion": {
+            "momentum_deceleration": ("ndx_close", "pct_rank(1260d)"),
+            "macd_rollover": ("ndx_close", "pct_rank(1260d)"),
+            "breadth_weakening_5": ("rsp_close/spy_close", "short pct_rank(1260d)"),
+            "breadth_weakening_20": ("rsp_close/spy_close", "short pct_rank(1260d)"),
+            "failed_breakout": ("ndx_close", "pct_rank(1260d)"),
+            "volume_price_divergence": ("qqq_close/qqq_volume", "short pct_rank(1260d)"),
+            "relative_strength_weakening": ("qqq_close/spy_close", "short pct_rank(1260d)"),
+            "rsi_rollover": ("ndx_close", "pct_rank(1260d)"),
+        },
+        "premium_proxy": {
+            "iv_percentile": ("vxn_close", "pct_rank(1260d)"),
+            "iv_minus_realized": ("vxn_close", "pct_rank(1260d)"),
+        },
+    }
+
+    latest_date = str(data.index[-1].date()) if len(data.index) else ""
+
     panic_components = {
         "drawdown_63": (_stress_score(_pct(drawdown_63, config)), 0.12),
         "drawdown_252": (_stress_score(_pct(drawdown_252, config)), 0.10),
@@ -228,7 +287,7 @@ def build_scores(
             0.10,
         ),
     }
-    panic, panic_coverage, panic_values = _weighted_score(
+    panic, panic_coverage, panic_values, panic_raw = _weighted_score(
         panic_components, smooth
     )
     price_components = {
@@ -242,7 +301,7 @@ def build_scores(
             "negative_return_5",
         }
     }
-    price_score, price_coverage, price_values = _weighted_score(
+    price_score, price_coverage, price_values, price_raw = _weighted_score(
         price_components, smooth
     )
 
@@ -270,7 +329,7 @@ def build_scores(
         ),
         "no_new_low_5": (no_new_low_5, 0.10),
     }
-    stabilization, stabilization_coverage, stabilization_values = (
+    stabilization, stabilization_coverage, stabilization_values, stabilization_raw = (
         _weighted_score(stabilization_components, smooth)
     )
 
@@ -295,7 +354,7 @@ def build_scores(
         "rsi": (_pct(rsi, config), 0.05),
         "up_day_share": (_pct(up_day_share_10, config), 0.05),
     }
-    greed, greed_coverage, greed_values = _weighted_score(
+    greed, greed_coverage, greed_values, greed_raw = _weighted_score(
         greed_components, smooth
     )
 
@@ -332,7 +391,7 @@ def build_scores(
         ),
         "rsi_rollover": (_pct(rsi_drop, config), 0.05),
     }
-    exhaustion, exhaustion_coverage, exhaustion_values = _weighted_score(
+    exhaustion, exhaustion_coverage, exhaustion_values, exhaustion_raw = _weighted_score(
         exhaustion_components, smooth
     )
 
@@ -342,7 +401,7 @@ def build_scores(
         "iv_percentile": (_pct(vxn, config), 0.35),
         "iv_minus_realized": (_pct(iv_minus_rv, config), 0.35),
     }
-    premium_proxy, premium_coverage, premium_values = _weighted_score(
+    premium_proxy, premium_coverage, premium_values, premium_raw = _weighted_score(
         premium_components, smooth
     )
     # 缺少历史执行价、偏斜、买卖价差、成交量和持仓量，最高覆盖率只有 70%。
@@ -421,7 +480,153 @@ def build_scores(
         "premium_proxy": premium_values,
         "insurance": insurance_values,
     }
-    return result, components
+
+    # ── Build calculation audit ────────────────────────────────────
+    # Gather all score components by looking at which (name, weight) pairs
+    # belong to each group — we precompute nominal weight lookups.
+    _comp_groups: dict[str, dict[str, float]] = {
+        "panic": {n: w for n, (_, w) in panic_components.items()},
+        "stabilization": {n: w for n, (_, w) in stabilization_components.items()},
+        "greed": {n: w for n, (_, w) in greed_components.items()},
+        "exhaustion": {n: w for n, (_, w) in exhaustion_components.items()},
+        "premium_proxy": {n: w for n, (_, w) in premium_components.items()},
+    }
+
+    def _build_group_audit(
+        group_name: str,
+        values_df: pd.DataFrame,
+        raw_score_series: pd.Series,
+        coverage_series: pd.Series,
+    ) -> list[dict]:
+        meta = _AUDIT_SRC.get(group_name, {})
+        if values_df.empty:
+            return []
+        last_row = values_df.iloc[-1]
+        weights_map = _comp_groups.get(group_name, {})
+        total_available = sum(
+            weights_map[c]
+            for c in values_df.columns
+            if c in weights_map and pd.notna(last_row.get(c))
+        )
+        entries: list[dict] = []
+        for col in values_df.columns:
+            if col not in meta:
+                continue
+            source, transformation = meta[col]
+            norm_val = float(last_row[col]) if pd.notna(last_row[col]) else None
+            nw = weights_map.get(col, 0.0)
+            effective_w = nw / total_available if total_available > 0.0 else 0.0
+            contrib = (norm_val * effective_w) if (norm_val is not None and effective_w > 0.0) else None
+            entries.append({
+                "name": col,
+                "raw_indicator": norm_val,
+                "data_date": latest_date,
+                "source": source,
+                "transformation": transformation,
+                "normalized_value": norm_val,
+                "nominal_weight": nw,
+                "effective_weight": round(effective_w, 6),
+                "contribution": round(contrib, 6) if contrib is not None else None,
+                "coverage": 1.0 if norm_val is not None else 0.0,
+            })
+        return entries
+
+    audit: dict[str, list[dict]] = {}
+
+    group_configs = [
+        ("P", "panic", panic_values, panic_raw, panic_coverage),
+        ("S", "stabilization", stabilization_values, stabilization_raw, stabilization_coverage),
+        ("G", "greed", greed_values, greed_raw, greed_coverage),
+        ("E", "exhaustion", exhaustion_values, exhaustion_raw, exhaustion_coverage),
+        ("R_proxy", "premium_proxy", premium_values, premium_raw, premium_coverage),
+    ]
+    for code, group, v_df, r_s, cov_s in group_configs:
+        entries = _build_group_audit(group, v_df, r_s, cov_s)
+        if entries:
+            audit[code] = entries
+
+    # Insurance audit — breakdown from build_insurance_scores
+    insurance_last = insurance_outputs.iloc[-1]
+    audit["I"] = [
+        {
+            "name": "I_need",
+            "raw_indicator": float(insurance_last["I_need"]) if pd.notna(insurance_last["I_need"]) else None,
+            "data_date": latest_date,
+            "source": "panic/greed/exhaustion composite",
+            "transformation": "0.5*risk_level + 0.3*risk_acceleration + 0.2*fragility",
+            "normalized_value": float(insurance_last["I_need"]) if pd.notna(insurance_last["I_need"]) else None,
+            "nominal_weight": 0.75,
+            "effective_weight": 1.0,
+            "contribution": None,
+            "coverage": 1.0,
+        },
+        {
+            "name": "affordability",
+            "raw_indicator": float(insurance_last["affordability"]) if pd.notna(insurance_last["affordability"]) else None,
+            "data_date": latest_date,
+            "source": "100 - premium_proxy",
+            "transformation": "(100 - R_proxy).clip(0, 100)",
+            "normalized_value": float(insurance_last["affordability"]) if pd.notna(insurance_last["affordability"]) else None,
+            "nominal_weight": 0.25,
+            "effective_weight": 1.0,
+            "contribution": None,
+            "coverage": 1.0,
+        },
+    ]
+    audit["I_need"] = [
+        {
+            "name": "risk_level",
+            "raw_indicator": float(insurance_last["risk_level"]) if pd.notna(insurance_last["risk_level"]) else None,
+            "data_date": latest_date,
+            "source": "panic",
+            "transformation": "((P - 20) / 40 * 100).clip(0, 100)",
+            "normalized_value": float(insurance_last["risk_level"]) if pd.notna(insurance_last["risk_level"]) else None,
+            "nominal_weight": 0.50,
+            "effective_weight": 1.0,
+            "contribution": None,
+            "coverage": 1.0,
+        },
+        {
+            "name": "risk_acceleration",
+            "raw_indicator": float(insurance_last["risk_acceleration"]) if pd.notna(insurance_last["risk_acceleration"]) else None,
+            "data_date": latest_date,
+            "source": "panic",
+            "transformation": "(P - P.shift(5)).clip(0) / 20 * 100",
+            "normalized_value": float(insurance_last["risk_acceleration"]) if pd.notna(insurance_last["risk_acceleration"]) else None,
+            "nominal_weight": 0.30,
+            "effective_weight": 1.0,
+            "contribution": None,
+            "coverage": 1.0,
+        },
+        {
+            "name": "fragility",
+            "raw_indicator": float(insurance_last["fragility"]) if pd.notna(insurance_last["fragility"]) else None,
+            "data_date": latest_date,
+            "source": "exhaustion/greed",
+            "transformation": "0.6*E + 0.4*G",
+            "normalized_value": float(insurance_last["fragility"]) if pd.notna(insurance_last["fragility"]) else None,
+            "nominal_weight": 0.20,
+            "effective_weight": 1.0,
+            "contribution": None,
+            "coverage": 1.0,
+        },
+    ]
+    audit["I_affordability"] = [
+        {
+            "name": "affordability",
+            "raw_indicator": float(insurance_last["affordability"]) if pd.notna(insurance_last["affordability"]) else None,
+            "data_date": latest_date,
+            "source": "premium_proxy",
+            "transformation": "(100 - R_proxy).clip(0, 100)",
+            "normalized_value": float(insurance_last["affordability"]) if pd.notna(insurance_last["affordability"]) else None,
+            "nominal_weight": 1.0,
+            "effective_weight": 1.0,
+            "contribution": None,
+            "coverage": 1.0,
+        },
+    ]
+
+    return result, components, audit
 
 
 @dataclass

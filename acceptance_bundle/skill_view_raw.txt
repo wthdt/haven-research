@@ -1,3 +1,13 @@
+=== hermes skills list output ===
+(truncated to show haven-market-risk line only)
+
+│ haven-market-risk       │                      │ local   │ local   │ enabled │
+
+Full output shows 97 enabled skills, haven-market-risk listed with
+source=local, status=enabled. Skill installed at ~/.hermes/skills/haven-market-risk/
+
+=== SKILL.md content ===
+
 ---
 name: haven-market-risk
 description: Use the deterministic Haven v0.4 P/S/G/E/R/I/N model to answer current market-state, panic/recovery, premium, insurance, and TQQQ covered-call questions. Use the plugin tools for every numeric score, current-state update, backtest, or option candidate; never recreate scores from prose or guess live quotes.
@@ -31,11 +41,19 @@ language model interpretive.
    cost basis, and realized historical premium when known. Use seller Bid, not
    Ask, when describing obtainable premium.
 6. For historical evidence, call `haven_backtest_v04`. Rerun only when asked.
+7. When reporting scores, include the `calculation_audit` breakdown to show
+   how each score is constructed from its component indicators. Lead with
+   the final score, but cite component-level evidence when the user asks
+   for detail or when a score is near a threshold boundary.
+8. Before enabling a cron job or declaring a deployment "done", verify:
+   a. The delivery ledger is confirmed (not just pending)
+   b. The cron window (16:15-17:30 ET) and weekday filter work in both
+      America/New_York and Asia/Shanghai timezones
+   c. A delivery-failure retry produces output again on the next tick
 
 ## Output
 
 Report:
-
 - signal date and next-trading-day effective timing;
 - each score, coverage, and state;
 - the model action for panic reserve, Put, Call, and insurance;
@@ -46,20 +64,26 @@ For a Call candidate, include expiry, strike, seller net credit, Delta, DTE,
 spread, open interest, upside to strike, effective exit price, and assignment
 economics relative to cost.
 
+## Calculation Audit
+
+Every `haven_model_status` and `haven_refresh_close` response includes a
+`calculation_audit` key with per-score breakdowns (P/S/G/E/R/R_put/R_call/I).
+
+## Delivery Confirmation (Cron)
+
+The cron job (haven-close-update.py) uses a two-phase ledger pattern:
+- PENDING ledger written AFTER stdout delivery
+- CONFIRMED ledger promoted when Hermes job shows last_delivery_error=None
+  AND last_run_at advanced past pending snapshot
+
 ## Guardrails
 
-- Keep v0.4 in research/Shadow mode.
-- Never place, stage, or construct a broker order.
-- Never promote TQQQ or Covered Call to Paper/Live.
-- Treat current constituent breadth and delayed option chains as live snapshots;
-  never backfill them into history.
-- Keep `N` non-executable for at least 30 live days. Missing X authorization must
-  remain `SHADOW_NO_DATA`, not be imputed.
-- Do not let the same cash simultaneously back a cash-secured Put and the panic
-  reserve.
-- Preserve the close-to-next-trading-day signal delay.
----
-total 8
-drwxr-xr-x   3 wth  staff    96 Jul 28 23:31 .
-drwxr-xr-x  35 wth  staff  1120 Jul 29 15:38 ..
--rw-r--r--@  1 wth  staff  2437 Jul 29 10:57 SKILL.md
+- Keep v0.4 in research/Shadow mode
+- Never place, stage, or construct a broker order
+- Never promote TQQQ or Covered Call to Paper/Live
+- Current breadth and option chains are live snapshots, not historical
+- N stays non-executable for 30 live days
+- Preserve close-to-next-trading-day signal delay
+
+=== Platform ===
+platforms: [linux, macos] — verified on macOS (Darwin)

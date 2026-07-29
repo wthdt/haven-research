@@ -1,34 +1,38 @@
-     1|{
-     2|  "hermes_version": "v0.13.x (git 44cdf555a)",
-     3|  "hermes_home": "/Users/wth/.hermes",
-     4|  "hermes_binary": "/Users/wth/.local/bin/hermes",
-     5|  "hermes_repo": "/Users/wth/.hermes/hermes-agent",
-     6|  "hermes_git_commit": "44cdf555a83c1d8d605d095442e11efd58089533",
-     7|  "python_version": "3.11.15",
-     8|  "python_path": "/Users/wth/.hermes/hermes-agent/venv/bin/python3",
-     9|  "server_timezone": "Asia/Shanghai",
-    10|  "haven_research_root": "/Users/wth/haven_research_v0_4/haven_research",
-    11|  "haven_git_branch": "codex-review/haven-v04-hermes",
-    12|  "haven_git_commit": "9fdf1d9c1d2ac52206034653f027b796898b6e3e",
-    13|  "plugin_installed_at": "/Users/wth/.hermes/plugins/haven_market_model",
-    14|  "plugin_enabled_in_config": true,
-    15|  "config_path": "/Users/wth/.hermes/config.yaml",
-    16|  "skill_installed_at": "/Users/wth/.hermes/skills/haven-market-risk",
-    17|  "skill_readiness": "available (tested via real skill_view on macOS)",
-    18|  "fixes_applied": [
-    19|    "DATA_GUARD covers P,S,G,E,R,R_put,R_call coverage + I presence",
-    20|    "SKILL.md platforms: [linux] → [linux, macos]",
-    21|    "install.py copies skill to ~/.hermes/skills/",
-    22|    "Cron schedule 20 * * * * (not 1-5), script filters America/New_York",
-    23|    "Delivery ledger written AFTER stdout (not before) — retry on failure",
-    24|    ".gitignore added, __pycache__ removed from git"
-    25|  ],
-    26|  "cron_enabled": false,
-    27|  "commits_since_baseline": [
-    28|    "ea78e2f Fix all 6 Codex review blockers",
-    29|    "6260fe8 Update git_info.txt to final commit SHA",
-    30|    "9fdf1d9 test: verify SSH push via agent_deploy"
-    31|  ],
-    32|  "acceptance_evidence_regenerated": "2026-07-29 15:48 ET"
-    33|}
-    34|
+{
+  "hermes_version": "v0.13.x (git 44cdf555a)",
+  "hermes_home": "/Users/wth/.hermes",
+  "hermes_binary": "/Users/wth/.local/bin/hermes",
+  "hermes_repo": "/Users/wth/.hermes/hermes-agent",
+  "hermes_git_commit": "44cdf555a83c1d8d605d095442e11efd58089533",
+  "python_version": "3.11.15",
+  "python_path": "/Users/wth/.hermes/hermes-agent/venv/bin/python3",
+  "server_timezone": "Asia/Shanghai",
+  "haven_research_root": "/Users/wth/haven_research_v0_4/haven_research",
+  "haven_git_branch": "codex-review/haven-v04-hermes",
+  "haven_git_commit": "a655453ca99b547c95f29076c07c9a486190d562",
+  "plugin_installed_at": "/Users/wth/.hermes/plugins/haven_market_model",
+  "plugin_enabled_in_config": true,
+  "config_path": "/Users/wth/.hermes/config.yaml",
+  "skill_installed_at": "/Users/wth/.hermes/skills/haven-market-risk",
+  "skill_readiness": "available (tested via real hermes skills list on macOS)",
+  "fixes_applied": [
+    "DATA_GUARD covers P,S,G,E,R,R_put,R_call coverage + I presence",
+    "SKILL.md platforms: [linux] to [linux, macos]",
+    "install.py copies skill to ~/.hermes/skills/",
+    "Cron schedule 20 * * * * (not 1-5), script filters America/New_York",
+    "Delivery ledger written AFTER stdout (not before) — retry on failure",
+    ".gitignore added, __pycache__ removed from git",
+    "Engine-native calculation_audit (3-day smoothing, v0.4 overlay, R_put/R_call/I breakdowns)",
+    "Cron delivery with job-state binding (job_id, last_run_at, Hermes crash safe)"
+  ],
+  "cron_enabled": false,
+  "commits_since_baseline": [
+    "ea78e2f Fix all 6 Codex review blockers",
+    "6260fe8 Update git_info.txt to final commit SHA",
+    "9fdf1d9 test: verify SSH push via agent_deploy",
+    "0338847 Round 2 fixes: cron delivery confirmation + calculation_audit + acceptance bundle",
+    "a655453 Update acceptance bundle SHAs to final commit 0338847"
+  ],
+  "acceptance_evidence_regenerated": "2026-07-29 19:20 ET",
+  "total_tests": 30
+}

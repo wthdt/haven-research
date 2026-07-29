@@ -20,7 +20,7 @@ This copies:
 ## Verification
 ```bash
 # 1. Skill loads on macOS (no longer Linux-only)
-hermes skill view haven-market-risk
+hermes skills list | grep haven-market-risk
 
 # 2. Plugin tools registered
 hermes tools | grep haven
@@ -34,7 +34,7 @@ from haven_market_model.tools import handle_model_status, handle_backtest_v04
 print(json.dumps(json.loads(handle_model_status({'refresh':False})), indent=2))
 "
 
-# 4. Run 24 tests
+# 4. Run 30 tests
 $VENV -m unittest discover -s tests -v
 ```
 
@@ -49,3 +49,11 @@ $VENV -m unittest discover -s tests -v
 # After approval:
 python3 integrations/hermes/install.py --update --create-cron --deliver telegram
 ```
+
+## Test Count
+30 tests total (25 original + 5 new for cron delivery + calculation_audit):
+- test_covered_call: 3 tests
+- test_enriched: 7 tests
+- test_hermes_adapter: 9 tests (5 new: data_guard, audit, delivery×3, crash, duplicate)
+- test_model: 5 tests
+- test_options_proxy: 6 tests

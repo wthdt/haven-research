@@ -216,10 +216,10 @@ def main() -> None:
         data, enriched_metadata = attach_enriched_market_data(
             data, config, PROJECT_ROOT, force=force_market
         )
-        scores, components = build_enriched_scores(data, config)
+        scores, components, audit = build_enriched_scores(data, config)
         states = run_state_machine(scores, config)
         snapshot["model"] = _score_snapshot(scores, states)
-        snapshot["score_components"] = _serialize_components(components)
+        snapshot["calculation_audit"] = _clean_json(audit)
         snapshot["data_metadata"] = {
             "base": base_metadata,
             "enriched": enriched_metadata,

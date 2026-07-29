@@ -8,11 +8,17 @@ test_news_model_is_shadow_only (test_enriched.HavenEnrichedTests.test_news_model
 test_option_chain_summary_uses_observed_quotes (test_enriched.HavenEnrichedTests.test_option_chain_summary_uses_observed_quotes) ... ok
 test_put_and_call_richness_split_on_skew (test_enriched.HavenEnrichedTests.test_put_and_call_richness_split_on_skew) ... ok
 test_x_count_heat_detects_spike (test_enriched.HavenEnrichedTests.test_x_count_heat_detects_spike) ... ok
+test_calculation_audit_regression (test_hermes_adapter.HermesAdapterTests.test_calculation_audit_regression)
+Verify that a fixed snapshot's audit has non-empty components and ... ok
 test_close_message_and_deduplication (test_hermes_adapter.HermesAdapterTests.test_close_message_and_deduplication) ... ok
 test_delivery_failure_retry (test_hermes_adapter.HermesAdapterTests.test_delivery_failure_retry)
-Simulate: first run (pending), delivery fails, second run retries. ... ok
-test_delivery_success_promotes_to_confirmed (test_hermes_adapter.HermesAdapterTests.test_delivery_success_promotes_to_confirmed)
-Simulate: first run (pending), next run finds delivery ok → silent. ... ok
+Delivery error set → must retry (no confirmation). ... ok
+test_delivery_success_advances_last_run (test_hermes_adapter.HermesAdapterTests.test_delivery_success_advances_last_run)
+Delivery success only when last_run_at advances past pending. ... ok
+test_duplicate_job_name_fails_safe (test_hermes_adapter.HermesAdapterTests.test_duplicate_job_name_fails_safe)
+Duplicate job names → _find_cron_job() returns None → retry. ... ok
+test_hermes_crash_before_delivery_retries (test_hermes_adapter.HermesAdapterTests.test_hermes_crash_before_delivery_retries)
+Hermes crashes before delivery: last_run_at doesn't advance → retry. ... ok
 test_low_put_coverage_triggers_data_guard_blocks_sell_put (test_hermes_adapter.HermesAdapterTests.test_low_put_coverage_triggers_data_guard_blocks_sell_put)
 R_put_coverage=0.50 must BLOCKED sell_put, sell_call, insurance, panic. ... ok
 test_plugin_registers_tools_skill_and_command (test_hermes_adapter.HermesAdapterTests.test_plugin_registers_tools_skill_and_command) ... ok
@@ -30,6 +36,6 @@ test_monthly_expiry_respects_dte_window (test_options_proxy.HavenOptionProxyTest
 test_put_and_call_use_separate_premium_scores (test_options_proxy.HavenOptionProxyTests.test_put_and_call_use_separate_premium_scores) ... ok
 
 ----------------------------------------------------------------------
-Ran 27 tests in 1.273s
+Ran 30 tests in 1.384s
 
 OK

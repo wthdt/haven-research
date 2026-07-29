@@ -105,8 +105,8 @@ class HavenEnrichedTests(unittest.TestCase):
             "skew_close",
         ]
         changed.loc[changed.index[330] :, columns] *= 4.0
-        first, _ = build_enriched_scores(original, self.config)
-        second, _ = build_enriched_scores(changed, self.config)
+        first, _, _ = build_enriched_scores(original, self.config)
+        second, _, _ = build_enriched_scores(changed, self.config)
         pd.testing.assert_frame_equal(
             first.loc[: first.index[329], ["P", "S", "G", "E", "R_put"]],
             second.loc[: second.index[329], ["P", "S", "G", "E", "R_put"]],
@@ -114,7 +114,7 @@ class HavenEnrichedTests(unittest.TestCase):
         )
 
     def test_put_and_call_richness_split_on_skew(self) -> None:
-        scores, _ = build_enriched_scores(
+        scores, _, _ = build_enriched_scores(
             _synthetic_dataset(), self.config
         )
         latest = scores.dropna(subset=["R_put", "R_call"]).iloc[-1]

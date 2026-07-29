@@ -1,9 +1,17 @@
 .gitignore
 acceptance_bundle/SUMMARY.md
+acceptance_bundle/changed_files.txt
 acceptance_bundle/cron_dry_run.txt
 acceptance_bundle/environment.json
+acceptance_bundle/git_diff.patch
 acceptance_bundle/git_info.txt
 acceptance_bundle/install.md
+acceptance_bundle/skill_view_raw.txt
+acceptance_bundle/test_report.txt
+acceptance_bundle/tool_smoke_outputs/haven_backtest_v04.json
+acceptance_bundle/tool_smoke_outputs/haven_model_status.json
+acceptance_bundle/tool_smoke_outputs/haven_refresh_close.json
+acceptance_bundle/tool_smoke_outputs/haven_screen_tqqq_calls.json
 integrations/hermes/haven-close-update.py
 integrations/hermes/haven_market_model/__pycache__/__init__.cpython-311.pyc
 integrations/hermes/haven_market_model/__pycache__/schemas.cpython-311.pyc
@@ -12,6 +20,7 @@ integrations/hermes/haven_market_model/cli.py
 integrations/hermes/haven_market_model/skills/haven-market-risk/SKILL.md
 integrations/hermes/haven_market_model/tools.py
 integrations/hermes/install.py
+scripts/run_live_shadow_v0_4.py
 src/haven/__pycache__/__init__.cpython-311.pyc
 src/haven/__pycache__/backtest.cpython-311.pyc
 src/haven/__pycache__/covered_call.cpython-311.pyc

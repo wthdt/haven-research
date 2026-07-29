@@ -48,7 +48,7 @@
     "sell_call_gate": {
       "status": "WAIT",
       "eligible": false,
-      "reason": "RANGE_CARRY requires G≥50.0, E≥40.0, and R_call≥55.0",
+      "reason": "RANGE_CARRY requires G\u226550.0, E\u226540.0, and R_call\u226555.0",
       "automation_allowed": false,
       "maximum_researched_contracts": 0
     },
@@ -61,134 +61,262 @@
     }
   },
   "calculation_audit": {
-    "P": {
-      "score_code": "P",
-      "value": 23.362309917847284,
-      "coverage": 1.0,
-      "smoothing_days": 5,
-      "effective_coverage_pct": 100.0,
-      "components": [],
-      "total_contribution": 0.0,
-      "reconstruction_error": 23.36231,
-      "status": "RANGE_CARRY",
-      "signal_date": "2026-07-27"
-    },
-    "S": {
-      "score_code": "S",
-      "value": 44.48469509892834,
-      "coverage": 1.0,
-      "smoothing_days": 5,
-      "effective_coverage_pct": 100.0,
-      "components": [],
-      "total_contribution": 0.0,
-      "reconstruction_error": 44.484695,
-      "status": "RANGE_CARRY",
-      "signal_date": "2026-07-27"
-    },
-    "G": {
-      "score_code": "G",
-      "value": 28.6454100529101,
-      "coverage": 1.0,
-      "smoothing_days": 5,
-      "effective_coverage_pct": 100.0,
-      "components": [],
-      "total_contribution": 0.0,
-      "reconstruction_error": 28.64541,
-      "status": "RANGE_CARRY",
-      "signal_date": "2026-07-27"
-    },
-    "E": {
-      "score_code": "E",
-      "value": 57.81507936507933,
-      "coverage": 1.0,
-      "smoothing_days": 5,
-      "effective_coverage_pct": 100.0,
-      "components": [],
-      "total_contribution": 0.0,
-      "reconstruction_error": 57.815079,
-      "status": "RANGE_CARRY",
-      "signal_date": "2026-07-27"
-    },
-    "R": {
-      "score_code": "R",
-      "value": 67.69127450511579,
-      "coverage": 0.82,
-      "smoothing_days": 5,
-      "effective_coverage_pct": 82.0,
-      "components": [],
-      "total_contribution": 0.0,
-      "reconstruction_error": 67.691275,
-      "status": "RANGE_CARRY",
-      "signal_date": "2026-07-27"
-    },
-    "R_put": {
-      "score_code": "R_put",
-      "value": 70.62117827836391,
-      "coverage": 0.835,
-      "smoothing_days": 5,
-      "effective_coverage_pct": 83.5,
-      "components": [],
-      "total_contribution": null,
-      "reconstruction_error": null,
-      "status": "RANGE_CARRY",
-      "signal_date": "2026-07-27",
-      "derived_from": "R_proxy (skew split)"
-    },
-    "R_call": {
-      "score_code": "R_call",
-      "value": 64.76137073186764,
-      "coverage": 0.8049999999999999,
-      "smoothing_days": 5,
-      "effective_coverage_pct": 80.5,
-      "components": [],
-      "total_contribution": null,
-      "reconstruction_error": null,
-      "status": "RANGE_CARRY",
-      "signal_date": "2026-07-27",
-      "derived_from": "R_proxy (skew split)"
-    },
-    "I": {
-      "score_code": "I",
-      "value": 17.635720436200444,
-      "coverage": null,
-      "smoothing_days": 5,
-      "effective_coverage_pct": null,
-      "components": [],
-      "total_contribution": null,
-      "reconstruction_error": null,
-      "status": "RANGE_CARRY",
-      "signal_date": "2026-07-27",
-      "no_component_breakdown": true
-    },
-    "I_need": {
-      "score_code": "I_need",
-      "value": 13.721353341055233,
-      "coverage": null,
-      "smoothing_days": 5,
-      "effective_coverage_pct": null,
-      "components": [],
-      "total_contribution": null,
-      "reconstruction_error": null,
-      "status": "RANGE_CARRY",
-      "signal_date": "2026-07-27",
-      "no_component_breakdown": true
-    },
-    "I_affordability": {
-      "score_code": "I_affordability",
-      "value": 29.378821721636086,
-      "coverage": null,
-      "smoothing_days": 5,
-      "effective_coverage_pct": null,
-      "components": [],
-      "total_contribution": null,
-      "reconstruction_error": null,
-      "status": "RANGE_CARRY",
-      "signal_date": "2026-07-27",
-      "no_component_breakdown": true
-    },
-    "breadth_shadow": true,
-    "chain_shadow": true,
-    "N_news_shadow": true
+    "P_overlay": [
+      {
+        "name": "P_overlay_base",
+        "raw_indicator": 50.0,
+        "data_date": "2026-07-27",
+        "source": "base(P)",
+        "transformation": "weighted blend (nominal 1/2)",
+        "normalized_value": 50.0,
+        "nominal_weight": 1,
+        "effective_weight": 0.5,
+        "contribution": 25.0,
+        "coverage": 1.0
+      },
+      {
+        "name": "P_overlay_breadth",
+        "raw_indicator": 3.8888888888889053,
+        "data_date": "2026-07-27",
+        "source": "breadth_stress",
+        "transformation": "weighted blend (nominal 1/2)",
+        "normalized_value": 3.8888888888889053,
+        "nominal_weight": 1,
+        "effective_weight": 0.5,
+        "contribution": 1.9444444444444526,
+        "coverage": 1.0
+      }
+    ],
+    "S_overlay": [
+      {
+        "name": "S_overlay_base",
+        "raw_indicator": 45.0,
+        "data_date": "2026-07-27",
+        "source": "base(S)",
+        "transformation": "weighted blend (nominal 4/5)",
+        "normalized_value": 45.0,
+        "nominal_weight": 4,
+        "effective_weight": 0.8,
+        "contribution": 36.0,
+        "coverage": 1.0
+      },
+      {
+        "name": "S_overlay_liquidity",
+        "raw_indicator": 53.826117655950185,
+        "data_date": "2026-07-27",
+        "source": "liquidity_relief",
+        "transformation": "weighted blend (nominal 1/5)",
+        "normalized_value": 53.826117655950185,
+        "nominal_weight": 1,
+        "effective_weight": 0.2,
+        "contribution": 10.765223531190038,
+        "coverage": 1.0
+      }
+    ],
+    "G_overlay": [
+      {
+        "name": "G_overlay_base",
+        "raw_indicator": 30.0,
+        "data_date": "2026-07-27",
+        "source": "base(G)",
+        "transformation": "weighted blend (nominal 2/3)",
+        "normalized_value": 30.0,
+        "nominal_weight": 2,
+        "effective_weight": 0.666667,
+        "contribution": 20.0,
+        "coverage": 1.0
+      },
+      {
+        "name": "G_overlay_tail",
+        "raw_indicator": 22.47354497354496,
+        "data_date": "2026-07-27",
+        "source": "tail_stress",
+        "transformation": "weighted blend (nominal 1/3)",
+        "normalized_value": 22.47354497354496,
+        "nominal_weight": 1,
+        "effective_weight": 0.333333,
+        "contribution": 7.491174166666662,
+        "coverage": 1.0
+      }
+    ],
+    "E_overlay": [
+      {
+        "name": "E_overlay_base",
+        "raw_indicator": 60.0,
+        "data_date": "2026-07-27",
+        "source": "base(E)",
+        "transformation": "weighted blend (nominal 1/2)",
+        "normalized_value": 60.0,
+        "nominal_weight": 1,
+        "effective_weight": 0.5,
+        "contribution": 30.0,
+        "coverage": 1.0
+      },
+      {
+        "name": "E_overlay_liquidity",
+        "raw_indicator": 32.58077113614481,
+        "data_date": "2026-07-27",
+        "source": "liquidity_stress",
+        "transformation": "weighted blend (nominal 1/2)",
+        "normalized_value": 32.58077113614481,
+        "nominal_weight": 1,
+        "effective_weight": 0.5,
+        "contribution": 16.290385568072406,
+        "coverage": 1.0
+      }
+    ],
+    "R_put": [
+      {
+        "name": "R_put_atm",
+        "raw_indicator": 68.0,
+        "data_date": "2026-07-27",
+        "source": "R_proxy",
+        "transformation": "weighted (0.55) + smoothing 3-day",
+        "normalized_value": 70.62117827836391,
+        "nominal_weight": 0.55,
+        "effective_weight": 0.55,
+        "contribution": 38.84164805310016,
+        "coverage": 1.0
+      },
+      {
+        "name": "R_put_skew",
+        "raw_indicator": 45.0,
+        "data_date": "2026-07-27",
+        "source": "skew_richness",
+        "transformation": "weighted (0.25) + smoothing 3-day",
+        "normalized_value": 45.0,
+        "nominal_weight": 0.25,
+        "effective_weight": 0.25,
+        "contribution": 11.25,
+        "coverage": 1.0
+      },
+      {
+        "name": "R_put_vvix",
+        "raw_indicator": 55.0,
+        "data_date": "2026-07-27",
+        "source": "vvix_richness",
+        "transformation": "weighted (0.10) + smoothing 3-day",
+        "normalized_value": 55.0,
+        "nominal_weight": 0.1,
+        "effective_weight": 0.1,
+        "contribution": 5.5,
+        "coverage": 1.0
+      },
+      {
+        "name": "R_put_term",
+        "raw_indicator": 50.0,
+        "data_date": "2026-07-27",
+        "source": "term_richness",
+        "transformation": "weighted (0.10) + smoothing 3-day",
+        "normalized_value": 50.0,
+        "nominal_weight": 0.1,
+        "effective_weight": 0.1,
+        "contribution": 5.0,
+        "coverage": 1.0
+      }
+    ],
+    "R_call": [
+      {
+        "name": "R_call_atm",
+        "raw_indicator": 68.0,
+        "data_date": "2026-07-27",
+        "source": "R_proxy",
+        "transformation": "weighted (0.65) + smoothing 3-day",
+        "normalized_value": 64.76137073186764,
+        "nominal_weight": 0.65,
+        "effective_weight": 0.65,
+        "contribution": 42.09489097571397,
+        "coverage": 1.0
+      },
+      {
+        "name": "R_call_inverse_skew",
+        "raw_indicator": 55.0,
+        "data_date": "2026-07-27",
+        "source": "100 - skew_richness",
+        "transformation": "weighted (0.15) + smoothing 3-day",
+        "normalized_value": 55.0,
+        "nominal_weight": 0.15,
+        "effective_weight": 0.15,
+        "contribution": 8.25,
+        "coverage": 0.8
+      },
+      {
+        "name": "R_call_vvix",
+        "raw_indicator": 55.0,
+        "data_date": "2026-07-27",
+        "source": "vvix_richness",
+        "transformation": "weighted (0.10) + smoothing 3-day",
+        "normalized_value": 55.0,
+        "nominal_weight": 0.1,
+        "effective_weight": 0.1,
+        "contribution": 5.5,
+        "coverage": 1.0
+      },
+      {
+        "name": "R_call_term",
+        "raw_indicator": 50.0,
+        "data_date": "2026-07-27",
+        "source": "term_richness",
+        "transformation": "weighted (0.10) + smoothing 3-day",
+        "normalized_value": 50.0,
+        "nominal_weight": 0.1,
+        "effective_weight": 0.1,
+        "contribution": 5.0,
+        "coverage": 1.0
+      }
+    ],
+    "R": [
+      {
+        "name": "put_leg",
+        "raw_indicator": 70.62117827836391,
+        "data_date": "2026-07-27",
+        "source": "R_put composite",
+        "transformation": "weighted blend of atm/skew/vvix/term",
+        "normalized_value": 70.62117827836391,
+        "nominal_weight": 0.5,
+        "effective_weight": 0.5,
+        "contribution": 35.31058913918196,
+        "coverage": 1.0
+      },
+      {
+        "name": "call_leg",
+        "raw_indicator": 64.76137073186764,
+        "data_date": "2026-07-27",
+        "source": "R_call composite",
+        "transformation": "weighted blend of atm/inverse_skew/vvix/term",
+        "normalized_value": 64.76137073186764,
+        "nominal_weight": 0.5,
+        "effective_weight": 0.5,
+        "contribution": 32.38068536593382,
+        "coverage": 1.0
+      }
+    ],
+    "I": [
+      {
+        "name": "I_need",
+        "raw_indicator": 13.721353341055233,
+        "data_date": "2026-07-27",
+        "source": "P/G/E composite",
+        "transformation": "0.5*risk_level + 0.3*risk_acceleration + 0.2*fragility",
+        "normalized_value": 13.721353341055233,
+        "nominal_weight": 0.75,
+        "effective_weight": 1.0,
+        "contribution": null,
+        "coverage": 1.0
+      },
+      {
+        "name": "affordability",
+        "raw_indicator": 29.378821721636086,
+        "data_date": "2026-07-27",
+        "source": "100 - R_put",
+        "transformation": "(100 - R_put).clip(0, 100)",
+        "normalized_value": 29.378821721636086,
+        "nominal_weight": 0.25,
+        "effective_weight": 1.0,
+        "contribution": null,
+        "coverage": 1.0
+      }
+    ]
   },
   "guardrails": {
     "research_only": true,

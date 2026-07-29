@@ -536,109 +536,139 @@ def build_enriched_scores(
     config: dict[str, Any],
     *,
     disabled_overlays: Iterable[str] = (),
-) -> tuple[pd.DataFrame, dict[str, pd.DataFrame]]:
+) -> tuple[pd.DataFrame, dict[str, pd.DataFrame], dict[str, list[dict]]]:
     """Build the causal v0.4 scores without allowing N to alter positions."""
 
     disabled = set(disabled_overlays)
-    base, base_components = build_scores(data, config)
+    base, base_components, base_audit = build_scores(data, config)
     breadth, breadth_components = _breadth_satellites(data, config)
     liquidity, liquidity_components = _liquidity_satellites(data, config)
     tail, tail_components = _tail_satellites(data, base, config)
     weights = config["enriched_scores"]["weights"]
+    latest_date = str(data.index[-1].date()) if len(data.index) else ""
+    smooth = int(config["scores"]["smoothing_days"])
 
-    p, p_cov = _blend(
-        {
-            "base": (
-                base["P"],
-                float(weights["P"]["base"]),
-                base["P_coverage"],
-            ),
-            "breadth": (
-                breadth["breadth_stress"],
-                _overlay_weight(
-                    weights["P"], "breadth", disabled
-                ),
-                breadth["breadth_stress_coverage"],
-            ),
-            "liquidity": (
-                liquidity["liquidity_stress"],
-                _overlay_weight(
-                    weights["P"], "liquidity", disabled
-                ),
-                liquidity["liquidity_stress_coverage"],
-            ),
-            "tail": (
-                tail["tail_stress"],
-                _overlay_weight(weights["P"], "tail", disabled),
-                tail["tail_stress_coverage"],
-            ),
-        }
-    )
-    s, s_cov = _blend(
-        {
-            "base": (
-                base["S"],
-                float(weights["S"]["base"]),
-                base["S_coverage"],
-            ),
-            "breadth": (
-                breadth["breadth_recovery"],
-                _overlay_weight(
-                    weights["S"], "breadth", disabled
-                ),
-                breadth["breadth_recovery_coverage"],
-            ),
-            "liquidity": (
-                liquidity["liquidity_relief"],
-                _overlay_weight(
-                    weights["S"], "liquidity", disabled
-                ),
-                liquidity["liquidity_relief_coverage"],
-            ),
-        }
-    )
-    g, g_cov = _blend(
-        {
-            "base": (
-                base["G"],
-                float(weights["G"]["base"]),
-                base["G_coverage"],
-            ),
-            "breadth": (
-                breadth["breadth_concentration"],
-                _overlay_weight(
-                    weights["G"], "breadth", disabled
-                ),
-                breadth["breadth_concentration_coverage"],
-            ),
-            "tail": (
-                tail["tail_complacency"],
-                _overlay_weight(weights["G"], "tail", disabled),
-                tail["tail_stress_coverage"],
-            ),
-        }
-    )
-    e, e_cov = _blend(
-        {
-            "base": (
-                base["E"],
-                float(weights["E"]["base"]),
-                base["E_coverage"],
-            ),
-            "breadth": (
-                breadth["breadth_exhaustion"],
-                _overlay_weight(
-                    weights["E"], "breadth", disabled
-                ),
-                breadth["breadth_exhaustion_coverage"],
-            ),
-            "tail": (
-                tail["tail_stress"],
-                _overlay_weight(weights["E"], "tail", disabled),
-                tail["tail_stress_coverage"],
-            ),
-        }
-    )
+    def _build_overlay_audit(
+        score_code: str,
+        overlay_blend: dict[str, tuple[pd.Series, float, pd.Series]],
+        final_score: pd.Series,
+        final_coverage: pd.Series,
+    ) -> list[dict]:
+        """Build audit entries for an overlay-blended score (P/S/G/E)."""
+        if data.empty:
+            return []
+        row_idx = data.index[-1]
+        entries: list[dict] = []
+        total_nominal = sum(w for _, (_, w, _) in overlay_blend.items())
+        # Compute available weight at the last row
+        total_available = 0.0
+        for name, (score, weight, cov) in overlay_blend.items():
+            val = float(score.loc[row_idx]) if pd.notna(score.loc[row_idx]) else None
+            cover = float(cov.loc[row_idx]) if pd.notna(cov.loc[row_idx]) else 0.0
+            if val is not None and cover > 0.0:
+                total_available += weight
+        if total_available == 0.0:
+            total_available = total_nominal
+        for name, (score, weight, cov) in overlay_blend.items():
+            val = float(score.loc[row_idx]) if pd.notna(score.loc[row_idx]) else None
+            cover = float(cov.loc[row_idx]) if pd.notna(cov.loc[row_idx]) else 0.0
+            effective_w = weight / total_available if total_available > 0.0 else 0.0
+            contrib = (val * effective_w) if (val is not None and effective_w > 0.0) else None
+            source = f"base({score_code})" if name == "base" else name
+            entries.append({
+                "name": f"{score_code}_overlay_{name}",
+                "raw_indicator": val,
+                "data_date": latest_date,
+                "source": source,
+                "transformation": f"weighted blend (nominal {weight}/{total_nominal})",
+                "normalized_value": val,
+                "nominal_weight": weight,
+                "effective_weight": round(effective_w, 6),
+                "contribution": round(contrib, 6) if contrib is not None else None,
+                "coverage": 1.0 if val is not None else 0.0,
+            })
+        return entries
+
+    p_blend = {
+        "base": (
+            base["P"],
+            float(weights["P"]["base"]),
+            base["P_coverage"],
+        ),
+        "breadth": (
+            breadth["breadth_stress"],
+            _overlay_weight(weights["P"], "breadth", disabled),
+            breadth["breadth_stress_coverage"],
+        ),
+        "liquidity": (
+            liquidity["liquidity_stress"],
+            _overlay_weight(weights["P"], "liquidity", disabled),
+            liquidity["liquidity_stress_coverage"],
+        ),
+        "tail": (
+            tail["tail_stress"],
+            _overlay_weight(weights["P"], "tail", disabled),
+            tail["tail_stress_coverage"],
+        ),
+    }
+    p, p_cov = _blend(p_blend)
+
+    s_blend = {
+        "base": (
+            base["S"],
+            float(weights["S"]["base"]),
+            base["S_coverage"],
+        ),
+        "breadth": (
+            breadth["breadth_recovery"],
+            _overlay_weight(weights["S"], "breadth", disabled),
+            breadth["breadth_recovery_coverage"],
+        ),
+        "liquidity": (
+            liquidity["liquidity_relief"],
+            _overlay_weight(weights["S"], "liquidity", disabled),
+            liquidity["liquidity_relief_coverage"],
+        ),
+    }
+    s, s_cov = _blend(s_blend)
+
+    g_blend = {
+        "base": (
+            base["G"],
+            float(weights["G"]["base"]),
+            base["G_coverage"],
+        ),
+        "breadth": (
+            breadth["breadth_concentration"],
+            _overlay_weight(weights["G"], "breadth", disabled),
+            breadth["breadth_concentration_coverage"],
+        ),
+        "tail": (
+            tail["tail_complacency"],
+            _overlay_weight(weights["G"], "tail", disabled),
+            tail["tail_stress_coverage"],
+        ),
+    }
+    g, g_cov = _blend(g_blend)
+
+    e_blend = {
+        "base": (
+            base["E"],
+            float(weights["E"]["base"]),
+            base["E_coverage"],
+        ),
+        "breadth": (
+            breadth["breadth_exhaustion"],
+            _overlay_weight(weights["E"], "breadth", disabled),
+            breadth["breadth_exhaustion_coverage"],
+        ),
+        "tail": (
+            tail["tail_stress"],
+            _overlay_weight(weights["E"], "tail", disabled),
+            tail["tail_stress_coverage"],
+        ),
+    }
+    e, e_cov = _blend(e_blend)
 
     r_put = (
         base["R_proxy"] if "tail" in disabled else tail["R_put"]
@@ -659,6 +689,182 @@ def build_enriched_scores(
     r = 0.50 * r_put + 0.50 * r_call
     r_cov = 0.50 * r_put_cov + 0.50 * r_call_cov
     insurance = build_insurance_scores(p, g, e, r_put)
+
+    # ── Build enriched audit ────────────────────────────────────────
+    audit: dict[str, list[dict]] = copy.deepcopy(base_audit)
+
+    # Overlay audit for P/S/G/E
+    overlay_configs = [
+        ("P", p_blend, p, p_cov),
+        ("S", s_blend, s, s_cov),
+        ("G", g_blend, g, g_cov),
+        ("E", e_blend, e, e_cov),
+    ]
+    for code, blend, final_s, final_cov in overlay_configs:
+        overlay_key = f"{code}_overlay"
+        overlay_entries = _build_overlay_audit(code, blend, final_s, final_cov)
+        if overlay_entries:
+            audit[overlay_key] = overlay_entries
+
+    # R_put and R_call audit (enriched breakdown)
+    row_idx = data.index[-1] if not data.empty else None
+    if row_idx is not None:
+        atm_val = float(base["R_proxy"].loc[row_idx]) if pd.notna(base["R_proxy"].loc[row_idx]) else None
+        atm_cov_val = float(base["R_proxy_coverage"].loc[row_idx]) if pd.notna(base["R_proxy_coverage"].loc[row_idx]) else 0.0
+        skew_val = float(tail.get("skew_richness", pd.Series(dtype=float)).loc[row_idx]) if "skew_richness" in tail and pd.notna(tail["skew_richness"].loc[row_idx]) else None
+        vvix_val = float(tail.get("R_put", pd.Series(dtype=float)).loc[row_idx]) if False else None  # vvix_richness from tail
+        # Actually get vvix_richness from tail_components
+        vvix_rich = None
+        if "premium_enriched" in tail_components:
+            pe = tail_components["premium_enriched"]
+            if not pe.empty and "vvix_richness" in pe.columns:
+                vvix_rich = float(pe["vvix_richness"].iloc[-1]) if pd.notna(pe["vvix_richness"].iloc[-1]) else None
+        term_rich = None
+        if "premium_enriched" in tail_components:
+            pe = tail_components["premium_enriched"]
+            if not pe.empty and "term_richness" in pe.columns:
+                term_rich = float(pe["term_richness"].iloc[-1]) if pd.notna(pe["term_richness"].iloc[-1]) else None
+        skew_rich = None
+        if "premium_enriched" in tail_components:
+            pe = tail_components["premium_enriched"]
+            if not pe.empty and "skew_richness" in pe.columns:
+                skew_rich = float(pe["skew_richness"].iloc[-1]) if pd.notna(pe["skew_richness"].iloc[-1]) else None
+
+        # R_put breakdown
+        r_put_entries = _build_r_option_audit(
+            "R_put",
+            {"atm": (atm_val, 0.55, atm_cov_val),
+             "skew": (skew_rich, 0.25, float(skew_rich is not None)),
+             "vol_of_vol": (vvix_rich, 0.10, float(vvix_rich is not None)),
+             "term": (term_rich, 0.10, float(term_rich is not None))},
+            float(r_put.loc[row_idx]) if pd.notna(r_put.loc[row_idx]) else None,
+            latest_date, smooth,
+        )
+        audit["R_put"] = r_put_entries
+
+        # R_call breakdown
+        inverse_skew = (100.0 - skew_rich) if skew_rich is not None else None
+        r_call_entries = _build_r_option_audit(
+            "R_call",
+            {"atm": (atm_val, 0.65, atm_cov_val),
+             "inverse_skew": (inverse_skew, 0.15, float(inverse_skew is not None)),
+             "vol_of_vol": (vvix_rich, 0.10, float(vvix_rich is not None)),
+             "term": (term_rich, 0.10, float(term_rich is not None))},
+            float(r_call.loc[row_idx]) if pd.notna(r_call.loc[row_idx]) else None,
+            latest_date, smooth,
+        )
+        audit["R_call"] = r_call_entries
+
+        # R composite (50/50 put/call)
+        r_val = float(r.loc[row_idx]) if pd.notna(r.loc[row_idx]) else None
+        r_cov_val = float(r_cov.loc[row_idx]) if pd.notna(r_cov.loc[row_idx]) else None
+        audit["R"] = [
+            {
+                "name": "put_leg",
+                "raw_indicator": float(r_put.loc[row_idx]) if pd.notna(r_put.loc[row_idx]) else None,
+                "data_date": latest_date,
+                "source": "R_put composite",
+                "transformation": "weighted blend of atm/skew/vvix/term",
+                "normalized_value": float(r_put.loc[row_idx]) if pd.notna(r_put.loc[row_idx]) else None,
+                "nominal_weight": 0.50,
+                "effective_weight": 0.50,
+                "contribution": float(r_put.loc[row_idx]) * 0.50 if pd.notna(r_put.loc[row_idx]) else None,
+                "coverage": 1.0 if pd.notna(r_put.loc[row_idx]) else 0.0,
+            },
+            {
+                "name": "call_leg",
+                "raw_indicator": float(r_call.loc[row_idx]) if pd.notna(r_call.loc[row_idx]) else None,
+                "data_date": latest_date,
+                "source": "R_call composite",
+                "transformation": "weighted blend of atm/inverse_skew/vvix/term",
+                "normalized_value": float(r_call.loc[row_idx]) if pd.notna(r_call.loc[row_idx]) else None,
+                "nominal_weight": 0.50,
+                "effective_weight": 0.50,
+                "contribution": float(r_call.loc[row_idx]) * 0.50 if pd.notna(r_call.loc[row_idx]) else None,
+                "coverage": 1.0 if pd.notna(r_call.loc[row_idx]) else 0.0,
+            },
+        ]
+
+        # I insurance (enriched version using blended scores)
+        insurance_last = insurance.iloc[-1]
+        audit["I"] = [
+            {
+                "name": "I_need",
+                "raw_indicator": float(insurance_last["I_need"]) if pd.notna(insurance_last["I_need"]) else None,
+                "data_date": latest_date,
+                "source": "P/G/E composite",
+                "transformation": "0.5*risk_level + 0.3*risk_acceleration + 0.2*fragility",
+                "normalized_value": float(insurance_last["I_need"]) if pd.notna(insurance_last["I_need"]) else None,
+                "nominal_weight": 0.75,
+                "effective_weight": 1.0,
+                "contribution": None,
+                "coverage": 1.0,
+            },
+            {
+                "name": "affordability",
+                "raw_indicator": float(insurance_last["I_affordability"]) if pd.notna(insurance_last["I_affordability"]) else None,
+                "data_date": latest_date,
+                "source": "100 - R_put",
+                "transformation": "(100 - R_put).clip(0, 100)",
+                "normalized_value": float(insurance_last["I_affordability"]) if pd.notna(insurance_last["I_affordability"]) else None,
+                "nominal_weight": 0.25,
+                "effective_weight": 1.0,
+                "contribution": None,
+                "coverage": 1.0,
+            },
+        ]
+        audit["I_need"] = [
+            {
+                "name": "risk_level",
+                "raw_indicator": float(insurance_last.get("risk_level", 0)) if pd.notna(insurance_last.get("risk_level", np.nan)) else None,
+                "data_date": latest_date,
+                "source": "panic",
+                "transformation": "((P - 20) / 40 * 100).clip(0, 100)",
+                "normalized_value": float(insurance_last.get("risk_level", 0)) if pd.notna(insurance_last.get("risk_level", np.nan)) else None,
+                "nominal_weight": 0.50,
+                "effective_weight": 1.0,
+                "contribution": None,
+                "coverage": 1.0,
+            },
+            {
+                "name": "risk_acceleration",
+                "raw_indicator": float(insurance_last.get("risk_acceleration", 0)) if pd.notna(insurance_last.get("risk_acceleration", np.nan)) else None,
+                "data_date": latest_date,
+                "source": "panic",
+                "transformation": "(P - P.shift(5)).clip(0) / 20 * 100",
+                "normalized_value": float(insurance_last.get("risk_acceleration", 0)) if pd.notna(insurance_last.get("risk_acceleration", np.nan)) else None,
+                "nominal_weight": 0.30,
+                "effective_weight": 1.0,
+                "contribution": None,
+                "coverage": 1.0,
+            },
+            {
+                "name": "fragility",
+                "raw_indicator": float(insurance_last.get("fragility", 0)) if pd.notna(insurance_last.get("fragility", np.nan)) else None,
+                "data_date": latest_date,
+                "source": "exhaustion/greed",
+                "transformation": "0.6*E + 0.4*G",
+                "normalized_value": float(insurance_last.get("fragility", 0)) if pd.notna(insurance_last.get("fragility", np.nan)) else None,
+                "nominal_weight": 0.20,
+                "effective_weight": 1.0,
+                "contribution": None,
+                "coverage": 1.0,
+            },
+        ]
+        audit["I_affordability"] = [
+            {
+                "name": "affordability",
+                "raw_indicator": float(insurance_last.get("affordability", 0)) if pd.notna(insurance_last.get("affordability", np.nan)) else None,
+                "data_date": latest_date,
+                "source": "R_put",
+                "transformation": "(100 - R_put).clip(0, 100)",
+                "normalized_value": float(insurance_last.get("affordability", 0)) if pd.notna(insurance_last.get("affordability", np.nan)) else None,
+                "nominal_weight": 1.0,
+                "effective_weight": 1.0,
+                "contribution": None,
+                "coverage": 1.0,
+            },
+        ]
 
     result = base.copy()
     for code in ["P", "S", "G", "E"]:
@@ -723,7 +929,41 @@ def build_enriched_scores(
             "I",
         ]
     ]
-    return result, components
+    return result, components, audit
+
+
+def _build_r_option_audit(
+    score_code: str,
+    components: dict[str, tuple[float | None, float, float]],
+    final_value: float | None,
+    latest_date: str,
+    smoothing_days: int,
+) -> list[dict]:
+    """Build audit entries for R_put or R_call."""
+    entries: list[dict] = []
+    total_nominal = sum(w for _, (_, w, _) in components.items())
+    total_available = sum(
+        w for _, (v, w, c) in components.items()
+        if v is not None and c > 0.0
+    )
+    if total_available <= 0.0:
+        total_available = total_nominal
+    for name, (val, weight, cov) in components.items():
+        effective_w = weight / total_available if total_available > 0.0 else 0.0
+        contrib = (val * effective_w) if (val is not None and effective_w > 0.0) else None
+        entries.append({
+            "name": name,
+            "raw_indicator": val,
+            "data_date": latest_date,
+            "source": name,
+            "transformation": f"weighted blend (nominal {weight}/{total_nominal})",
+            "normalized_value": val,
+            "nominal_weight": weight,
+            "effective_weight": round(effective_w, 6),
+            "contribution": round(contrib, 6) if contrib is not None else None,
+            "coverage": 1.0 if val is not None else 0.0,
+        })
+    return entries
 
 
 def build_news_shadow_score(snapshot: dict[str, Any]) -> dict[str, Any]:

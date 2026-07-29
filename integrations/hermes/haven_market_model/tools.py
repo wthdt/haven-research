@@ -360,7 +360,7 @@ def _status_payload(
         "generated_at_et": snapshot.get("generated_at_et"),
         "model": snapshot.get("model"),
         "decision": _decision(snapshot),
-        "calculation_audit": _build_calculation_audit(snapshot),
+        "calculation_audit": _read_calculation_audit(snapshot),
         "guardrails": {
             "research_only": True,
             "signal_effective_timing": "next trading day",
@@ -644,12 +644,17 @@ def close_update_once(
     return format_close_message(snapshot)
 
 
-# ── Two-phase delivery ledger ──────────────────────────────────────
+# ── Two-phase delivery ledger with job-state binding ──────────────
 #
-# Phase 1 (PENDING): script outputs message, writes pending ledger.
-# Phase 2 (CONFIRMED): next run checks Hermes last_delivery_error.
-#   - None → delivery succeeded → promote pending→confirmed → silent
-#   - Error string → delivery failed → retry (output again)
+# Phase 1 (PENDING): script outputs message, writes pending ledger with
+#   job_id + last_run_at snapshot from the Hermes cron jobs.json.
+# Phase 2 (CONFIRMED): next run reads jobs.json again and checks:
+#   - Same job_id exists
+#   - last_run_at has advanced (newer than pending's snapshot)
+#   - last_status == "ok"
+#   - last_delivery_error is None
+#   Only then promote pending→confirmed → silent.
+#   Any failure (crash, no advance, delivery_error) → retry.
 
 _PENDING_LEDGER = "close_delivery_pending.json"
 _CONFIRMED_LEDGER = "close_delivery_confirmed.json"
@@ -665,72 +670,52 @@ def _state_dir() -> Path:
 def _cron_jobs_path() -> Path | None:
     """Return path to Hermes cron jobs.json, or None if unreachable."""
     home = Path.home() / ".hermes"
-    candidate = home / "cron" / "jobs.json"
-    if candidate.exists():
-        return candidate
-    candidate2 = home / "data" / "cron" / "jobs.json"
-    if candidate2.exists():
-        return candidate2
+    for candidate in [home / "cron" / "jobs.json", home / "data" / "cron" / "jobs.json"]:
+        if candidate.exists():
+            return candidate
     return None
 
 
-def _read_job_delivery_status() -> bool | None:
-    """Check Hermes cron job delivery status.
+def _find_cron_job() -> dict | None:
+    """Find the 'Haven close update' cron job in Hermes jobs.json.
 
-    Returns:
-        True  → last_delivery_error is None (delivery succeeded)
-        False → last_delivery_error is set (delivery failed)
-        None  → job not found or file not accessible
+    Returns the full job dict, or None if not found / ambiguous.
     """
     path = _cron_jobs_path()
     if path is None:
         return None
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
-        for job in data.get("jobs", []):
-            if job.get("name") == _CRON_JOB_NAME:
-                err = job.get("last_delivery_error")
-                return err is None
+        matches = [j for j in data.get("jobs", []) if j.get("name") == _CRON_JOB_NAME]
+        if len(matches) != 1:
+            # Zero matches or duplicate names → can't confirm
+            return None
+        return matches[0]
     except (OSError, ValueError):
-        pass
-    return None
+        return None
 
 
-def _write_ledger(name: str, signal_date: str) -> None:
-    """Write a ledger entry for the given signal_date."""
-    path = _state_dir() / name
-    path.write_text(
-        _dumps({"signal_date": signal_date, "written_at": datetime.now().isoformat()})
-        + "\n",
-        encoding="utf-8",
-    )
-
-
-def _read_ledger(name: str) -> str | None:
-    """Read a ledger entry, returning signal_date or None."""
+def _read_ledger_full(name: str) -> dict | None:
+    """Read a ledger entry, returning the full dict or None."""
     path = _state_dir() / name
     if not path.exists():
         return None
     try:
-        data = json.loads(path.read_text(encoding="utf-8"))
-        return data.get("signal_date")
+        return json.loads(path.read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return None
 
 
+def _write_ledger(name: str, data: dict) -> None:
+    """Write a ledger entry."""
+    path = _state_dir() / name
+    path.write_text(_dumps(data) + "\n", encoding="utf-8")
+
+
 def _remove_ledger(name: str) -> None:
-    """Remove a ledger file if it exists."""
     path = _state_dir() / name
     if path.exists():
         path.unlink()
-
-
-def _promote_pending_to_confirmed() -> None:
-    """Promote the pending ledger to confirmed."""
-    signal_date = _read_ledger(_PENDING_LEDGER)
-    if signal_date is not None:
-        _write_ledger(_CONFIRMED_LEDGER, signal_date)
-        _remove_ledger(_PENDING_LEDGER)
 
 
 def close_update_once_with_ledger(
@@ -738,13 +723,16 @@ def close_update_once_with_ledger(
     now_et: datetime | None = None,
     force_window: bool = False,
 ) -> str:
-    """Two-phase delivery confirmation via Hermes cron job status.
+    """Two-phase delivery confirmation with job-state binding.
 
-    1. Confirmed ledger exists → silent (already delivered).
-    2. Pending ledger exists:
-       - Hermes last_delivery_error is None → promote to confirmed → silent
-       - Hermes last_delivery_error is set → retry (output again)
-    3. No ledger → first attempt → output message + write pending ledger.
+    Pending ledger records the job_id + last_run_at at write time.
+    Confirmation requires the SAME job to have advanced last_run_at,
+    last_status='ok', and last_delivery_error=None.
+
+    This prevents false confirmation when:
+    - Hermes crashes before delivery (last_run_at doesn't advance)
+    - Old stale jobs.json with last_delivery_error=null is read
+    - Duplicate job names exist (fails safe → None → retry)
     """
     current = now_et or datetime.now(ZoneInfo("America/New_York"))
     if current.tzinfo is None:
@@ -761,291 +749,63 @@ def close_update_once_with_ledger(
     snapshot = _refresh_snapshot()
     model = dict(snapshot.get("model") or {})
     signal_date = str(model.get("signal_date") or "")
-    if (
-        not force_window
-        and signal_date != str(current.date())
-    ):
+    if not force_window and signal_date != str(current.date()):
         return ""
 
     # ── Check confirmed ledger (already delivered successfully) ──
-    confirmed = _read_ledger(_CONFIRMED_LEDGER)
-    if confirmed == signal_date:
+    confirmed = _read_ledger_full(_CONFIRMED_LEDGER)
+    if confirmed and confirmed.get("signal_date") == signal_date:
         return ""
 
-    # ── Check pending ledger (previous attempt may or may not have delivered) ──
-    pending = _read_ledger(_PENDING_LEDGER)
-    if pending == signal_date:
-        # Previous run output a message. Check Hermes delivery status.
-        status = _read_job_delivery_status()
-        if status is True:
-            # Delivery succeeded! Promote pending → confirmed, go silent.
-            _promote_pending_to_confirmed()
-            return ""
-        # Delivery failed (or job not yet found). Retry.
+    # ── Check pending ledger ──
+    pending = _read_ledger_full(_PENDING_LEDGER)
+    if pending and pending.get("signal_date") == signal_date:
+        # There was a previous attempt. Check if delivery truly succeeded.
+        job = _find_cron_job()
+        if (
+            job is not None
+            and job.get("id") == pending.get("job_id")
+            and job.get("last_status") == "ok"
+            and job.get("last_delivery_error") is None
+        ):
+            # last_run_at must have advanced past the pending snapshot
+            new_run = job.get("last_run_at")
+            old_run = pending.get("last_run_at")
+            if new_run and old_run and new_run > old_run:
+                # Delivery confirmed — promote to confirmed, go silent
+                _write_ledger(_CONFIRMED_LEDGER, {"signal_date": signal_date})
+                _remove_ledger(_PENDING_LEDGER)
+                return ""
+        # Not confirmed: delivery failed, crash, or no advance → retry
         # Fall through to output again.
 
-    # ── First attempt (no pending ledger) ──
+    # ── Attempt delivery: output message + write pending ledger ──
+    job = _find_cron_job()
+    pending_data = {
+        "signal_date": signal_date,
+        "written_at": datetime.now().isoformat(),
+        "job_id": job.get("id") if job else None,
+        "last_run_at": job.get("last_run_at") if job else None,
+        "last_delivery_error": job.get("last_delivery_error") if job else None,
+    }
     message = format_close_message(snapshot)
-    _write_ledger(_PENDING_LEDGER, signal_date)
+    _write_ledger(_PENDING_LEDGER, pending_data)
     return signal_date + "||" + message
 
 
 def has_delivery_for_signal(signal_date: str) -> bool:
     """Check whether the confirmed delivery ledger records this signal_date."""
-    return _read_ledger(_CONFIRMED_LEDGER) == signal_date
+    confirmed = _read_ledger_full(_CONFIRMED_LEDGER)
+    return bool(confirmed and confirmed.get("signal_date") == signal_date)
 
 
-# ── Score calculation audit ────────────────────────────────────────
-#
+def _read_calculation_audit(snapshot: dict[str, Any]) -> dict[str, Any]:
+    """Read the pre-built calculation audit from the snapshot.
 
-_NOMINAL_WEIGHTS: dict[str, dict[str, float]] = {
-    "panic": {
-        "drawdown_63": 0.12,
-        "drawdown_252": 0.10,
-        "below_ma200": 0.08,
-        "negative_return_5": 0.05,
-        "vxn_level": 0.15,
-        "vxn_change_5": 0.10,
-        "breadth_rel_20": 0.10,
-        "breadth_rel_63": 0.10,
-        "credit_stress_level": 0.05,
-        "credit_widening": 0.05,
-        "vix_term_stress": 0.10,
-    },
-    "stabilization": {
-        "return_5": 0.10,
-        "return_10": 0.10,
-        "above_ma10": 0.075,
-        "above_ma20": 0.075,
-        "vxn_cooling": 0.10,
-        "vxn_off_high": 0.10,
-        "breadth_rel_5": 0.125,
-        "breadth_rel_20": 0.125,
-        "credit_narrowing": 0.10,
-        "no_new_low_5": 0.10,
-    },
-    "greed": {
-        "return_20": 0.10,
-        "return_63": 0.10,
-        "above_ma20": 0.10,
-        "low_vxn": 0.15,
-        "term_contango": 0.10,
-        "above_ma200": 0.10,
-        "return_252": 0.10,
-        "breadth_concentration_20": 0.075,
-        "breadth_concentration_63": 0.075,
-        "rsi": 0.05,
-        "up_day_share": 0.05,
-    },
-    "exhaustion": {
-        "momentum_deceleration": 0.20,
-        "negative_volume": 0.15,
-        "distance_below_high": 0.15,
-        "rsi_rollover": 0.15,
-        "volatility_crash": 0.15,
-        "breadth_exhaustion": 0.20,
-    },
-    "premium_proxy": {
-        "skew_richness": 0.10,
-        "vvix_richness": 0.10,
-        "term_richness": 0.10,
-        "iv_percentile": 0.35,
-        "iv_minus_realized": 0.35,
-    },
-}
-
-_SCORE_GROUP_MAP: dict[str, str] = {
-    "P": "panic",
-    "S": "stabilization",
-    "G": "greed",
-    "E": "exhaustion",
-    "R": "premium_proxy",
-}
-
-_SMOOTHING_DAYS = 5
-
-
-def _build_calculation_audit(snapshot: dict[str, Any]) -> dict[str, Any]:
-    """Produce a detailed audit for each score (P, S, G, E, R, I, ...).
-
-    Returns a dict keyed by score code::
-
-        {"P": {...}, "S": {...}, "G": {...}, "E": {...},
-         "R": {...}, "I": {...}, "I_need": {...}, "I_affordability": {...}}
+    The engine now computes the audit directly; this function just
+    retrieves it from the snapshot. Returns an empty dict if absent.
     """
-    model = dict(snapshot.get("model") or {})
-    scores = dict(model.get("scores") or {})
-    score_components = dict(snapshot.get("score_components") or {})
-    signal_date = str(model.get("signal_date", ""))
-
-    audits: dict[str, Any] = {}
-
-    # ── Composite scores (P, S, G, E) ─────────────────────────────
-    model_status = str(model.get("status", "UNKNOWN"))
-    for score_code, group_name in _SCORE_GROUP_MAP.items():
-        if group_name == "premium_proxy":
-            # Handle R separately below
-            continue
-        nominal = _NOMINAL_WEIGHTS.get(group_name, {})
-        group_data = {}
-        if group_name in score_components:
-            group_data = dict(score_components[group_name])
-        audits[score_code] = _audit_single_score(
-            score_code=score_code,
-            score_value=_float(scores.get(score_code)),
-            coverage=_float(scores.get(f"{score_code}_coverage")),
-            nominal_weights=nominal,
-            component_values=group_data,
-            signal_date=signal_date,
-            status=model_status,
-        )
-
-    # ── Premium proxy (R / R_proxy, R_put, R_call) ────────────────
-    premium_nominal = _NOMINAL_WEIGHTS["premium_proxy"]
-    premium_group = {}
-    if "premium_proxy" in score_components:
-        premium_group = dict(score_components["premium_proxy"])
-    # Also check enriched group for additional components
-    enriched_premium = {}
-    if "premium_enriched" in score_components:
-        enriched_premium = dict(score_components["premium_enriched"])
-    # Merge enriched into premium_group (enriched takes priority)
-    for k, v in enriched_premium.items():
-        if k in premium_nominal:
-            premium_group[k] = v
-
-    r_value = _float(scores.get("R"))
-    r_coverage_val = _float(scores.get("R_coverage"))
-    r_proxy_value = _float(scores.get("R_proxy"))
-    r_proxy_coverage_val = _float(scores.get("R_proxy_coverage"))
-
-    audits["R"] = _audit_single_score(
-        score_code="R",
-        score_value=r_value if math.isfinite(r_value) else r_proxy_value,
-        coverage=r_coverage_val if math.isfinite(r_coverage_val) else r_proxy_coverage_val,
-        nominal_weights=premium_nominal,
-        component_values=premium_group,
-        signal_date=signal_date,
-        status=model_status,
-    )
-    # R_put / R_call are skew-split from R_proxy — annotate as derived
-    for derived_code in ("R_put", "R_call"):
-        dv = _float(scores.get(derived_code))
-        dc = _float(scores.get(f"{derived_code}_coverage"))
-        audits[derived_code] = {
-            "score_code": derived_code,
-            "value": None if not math.isfinite(dv) else dv,
-            "coverage": None if not math.isfinite(dc) else dc,
-            "smoothing_days": _SMOOTHING_DAYS,
-            "effective_coverage_pct": (
-                round(dc * 100.0, 2) if math.isfinite(dc) else None
-            ),
-            "components": [],
-            "total_contribution": None,
-            "reconstruction_error": None,
-            "status": str(model.get("status", "UNKNOWN")),
-            "signal_date": signal_date,
-            "derived_from": "R_proxy (skew split)",
-        }
-
-    # ── Insurance scores (I, I_need, I_affordability) ─────────────
-    for i_code in ("I", "I_need", "I_affordability"):
-        iv = _float(scores.get(i_code))
-        audits[i_code] = {
-            "score_code": i_code,
-            "value": None if not math.isfinite(iv) else iv,
-            "coverage": None,
-            "smoothing_days": _SMOOTHING_DAYS,
-            "effective_coverage_pct": None,
-            "components": [],
-            "total_contribution": None,
-            "reconstruction_error": None,
-            "status": str(model.get("status", "UNKNOWN")),
-            "signal_date": signal_date,
-            "no_component_breakdown": True,
-        }
-
-    # ── Shadow markers ────────────────────────────────────────────
-    audits["breadth_shadow"] = True
-    audits["chain_shadow"] = True
-    audits["N_news_shadow"] = True
-
-    return audits
-
-
-def _audit_single_score(
-    *,
-    score_code: str,
-    score_value: float,
-    coverage: float,
-    nominal_weights: dict[str, float],
-    component_values: dict[str, Any],
-    signal_date: str,
-    status: str = "UNKNOWN",
-) -> dict[str, Any]:
-    """Build the audit entry for one composite score."""
-    components: list[dict[str, Any]] = []
-    total_contribution = 0.0
-    available_weight = 0.0
-
-    # Determine which nominal weights are actually present in data
-    present: dict[str, float] = {}
-    for name, weight in nominal_weights.items():
-        raw = component_values.get(name)
-        val = _float(raw) if raw is not None else math.nan
-        if math.isfinite(val):
-            present[name] = weight
-            available_weight += weight
-
-    # Renormalise effective weights
-    effective_weights: dict[str, float] = {}
-    if available_weight > 0.0:
-        scale = 1.0 / available_weight
-        for name, weight in present.items():
-            effective_weights[name] = weight * scale
-    else:
-        effective_weights = {name: 0.0 for name in present}
-
-    # Build each component entry
-    for name in present:
-        raw = component_values[name]
-        val = _float(raw) if raw is not None else math.nan
-        nw = nominal_weights[name]
-        ew = effective_weights[name]
-        contrib = val * ew if math.isfinite(val) else 0.0
-        components.append(
-            {
-                "name": name,
-                "normalized_value": val,
-                "nominal_weight": nw,
-                "effective_weight": round(ew, 6),
-                "contribution": round(contrib, 6),
-            }
-        )
-        total_contribution += contrib
-
-    # Reconstruct pre-smooth score
-    pre_smooth = total_contribution
-    # The reported score from the snapshot
-    reported = score_value if math.isfinite(score_value) else None
-    err = abs(reported - pre_smooth) if (reported is not None and math.isfinite(pre_smooth)) else None
-
-    effective_cov = (
-        round(coverage * 100.0, 2) if math.isfinite(coverage) else None
-    )
-
-    return {
-        "score_code": score_code,
-        "value": reported,
-        "coverage": coverage if math.isfinite(coverage) else None,
-        "smoothing_days": _SMOOTHING_DAYS,
-        "effective_coverage_pct": effective_cov,
-        "components": components,
-        "total_contribution": round(pre_smooth, 6),
-        "reconstruction_error": round(err, 6) if err is not None else None,
-        "status": status,
-        "signal_date": signal_date,
-    }
+    return dict(snapshot.get("calculation_audit") or {})
 
 
 HANDLERS = {
