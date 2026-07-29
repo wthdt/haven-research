@@ -19,4 +19,5 @@ Thumbs.db
 
 # Haven runtime
 outputs/latest/
-acceptance_bundle/tool_smoke_outputs/*.json
+data/raw/nasdaq_*.json
+!data/raw/nasdaq_nasdaq100_members_latest.json

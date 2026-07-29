@@ -162,6 +162,27 @@ def _append_history(path: Path, row: dict[str, Any]) -> None:
     frame.to_csv(path, index=False)
 
 
+def _serialize_components(
+    components: dict[str, pd.DataFrame],
+) -> dict[str, dict[str, float]]:
+    """Extract the latest component values as a JSON-safe dict.
+
+    Each component group (e.g. 'panic', 'greed') maps to a DataFrame
+    whose columns are component names.  The last row is serialised as
+    ``{column_name: value}``.  NaN → null for JSON cleanliness.
+    """
+    result: dict[str, dict[str, float]] = {}
+    for group, frame in components.items():
+        if frame.empty:
+            continue
+        last = frame.iloc[-1]
+        result[group] = {
+            col: (None if pd.isna(val) else float(val))
+            for col, val in last.items()
+        }
+    return result
+
+
 def main() -> None:
     now_et = pd.Timestamp.now(tz="America/New_York")
     end_date = str(now_et.date())
@@ -195,9 +216,10 @@ def main() -> None:
         data, enriched_metadata = attach_enriched_market_data(
             data, config, PROJECT_ROOT, force=force_market
         )
-        scores, _ = build_enriched_scores(data, config)
+        scores, components = build_enriched_scores(data, config)
         states = run_state_machine(scores, config)
         snapshot["model"] = _score_snapshot(scores, states)
+        snapshot["score_components"] = _serialize_components(components)
         snapshot["data_metadata"] = {
             "base": base_metadata,
             "enriched": enriched_metadata,

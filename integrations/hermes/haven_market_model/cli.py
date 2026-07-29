@@ -13,7 +13,6 @@ if __package__:
         handle_model_status,
         handle_refresh_close,
         handle_screen_tqqq_calls,
-        write_delivery_ledger,
     )
 else:
     plugin_parent = Path(__file__).resolve().parent.parent
@@ -25,7 +24,6 @@ else:
         handle_model_status,
         handle_refresh_close,
         handle_screen_tqqq_calls,
-        write_delivery_ledger,
     )
 
 
@@ -72,10 +70,8 @@ def main() -> int:
         result = close_update_once_with_ledger(force_window=args.force_window)
         if result:
             if "||" in result:
-                signal_date, message = result.split("||", 1)
+                _, message = result.split("||", 1)
                 print(message)
-                # Write ledger AFTER printing (delivery attempted)
-                write_delivery_ledger(signal_date)
             else:
                 print(result)
     elif args.command == "screen-tqqq-calls":

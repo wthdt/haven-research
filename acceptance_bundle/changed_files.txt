@@ -1,18 +1,29 @@
-integrations/hermes/haven_market_model/__init__.py (plugin registration)
-integrations/hermes/haven_market_model/schemas.py (tool schemas)
-integrations/hermes/haven_market_model/tools.py (tool handlers)
-integrations/hermes/haven_market_model/cli.py (CLI subcommands)
-integrations/hermes/haven_market_model/plugin.yaml (plugin manifest)
-integrations/hermes/haven_market_model/skills/haven-market-risk/SKILL.md (skill definition)
-integrations/hermes/haven-close-update.py (cron wrapper)
-integrations/hermes/install.py (plugin installer)
-src/haven/*.py (engine source files)
-tests/*.py (test files)
-config/haven_v0_4_enriched_indicators.yaml (v0.4 config)
-scripts/run_live_shadow_v0_4.py (live shadow runner)
-
-External modifications (Hermes config):
-~/.hermes/config.yaml (added plugins.enabled section)
-~/.hermes/plugins/haven_market_model/ (plugin installed)
-~/.hermes/skills/haven-market-risk/ (skill added)
-~/.hermes/scripts/haven-close-update.py (cron script added)
+.gitignore
+acceptance_bundle/SUMMARY.md
+acceptance_bundle/cron_dry_run.txt
+acceptance_bundle/environment.json
+acceptance_bundle/git_info.txt
+acceptance_bundle/install.md
+integrations/hermes/haven-close-update.py
+integrations/hermes/haven_market_model/__pycache__/__init__.cpython-311.pyc
+integrations/hermes/haven_market_model/__pycache__/schemas.cpython-311.pyc
+integrations/hermes/haven_market_model/__pycache__/tools.cpython-311.pyc
+integrations/hermes/haven_market_model/cli.py
+integrations/hermes/haven_market_model/skills/haven-market-risk/SKILL.md
+integrations/hermes/haven_market_model/tools.py
+integrations/hermes/install.py
+src/haven/__pycache__/__init__.cpython-311.pyc
+src/haven/__pycache__/backtest.cpython-311.pyc
+src/haven/__pycache__/covered_call.cpython-311.pyc
+src/haven/__pycache__/data.cpython-311.pyc
+src/haven/__pycache__/enriched.cpython-311.pyc
+src/haven/__pycache__/live_market.cpython-311.pyc
+src/haven/__pycache__/model.cpython-311.pyc
+src/haven/__pycache__/options_proxy.cpython-311.pyc
+src/haven/__pycache__/x_shadow.cpython-311.pyc
+tests/__pycache__/test_covered_call.cpython-311.pyc
+tests/__pycache__/test_enriched.cpython-311.pyc
+tests/__pycache__/test_hermes_adapter.cpython-311.pyc
+tests/__pycache__/test_model.cpython-311.pyc
+tests/__pycache__/test_options_proxy.cpython-311.pyc
+tests/test_hermes_adapter.py

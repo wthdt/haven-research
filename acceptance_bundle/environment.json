@@ -9,6 +9,7 @@
   "server_timezone": "Asia/Shanghai",
   "haven_research_root": "/Users/wth/haven_research_v0_4/haven_research",
   "haven_git_branch": "codex-review/haven-v04-hermes",
+  "haven_git_commit": "9fdf1d9c1d2ac52206034653f027b796898b6e3e",
   "plugin_installed_at": "/Users/wth/.hermes/plugins/haven_market_model",
   "plugin_enabled_in_config": true,
   "config_path": "/Users/wth/.hermes/config.yaml",
@@ -22,5 +23,11 @@
     "Delivery ledger written AFTER stdout (not before) — retry on failure",
     ".gitignore added, __pycache__ removed from git"
   ],
-  "cron_enabled": false
+  "cron_enabled": false,
+  "commits_since_baseline": [
+    "ea78e2f Fix all 6 Codex review blockers",
+    "6260fe8 Update git_info.txt to final commit SHA",
+    "9fdf1d9 test: verify SSH push via agent_deploy"
+  ],
+  "acceptance_evidence_regenerated": "2026-07-29 15:48 ET"
 }

@@ -276,5 +276,69 @@
       "affects_position": false
     },
     "minimum_live_days_before_review": 30
+  },
+  "data_metadata": {
+    "base": {
+      "warmup_start": "2011-07-01",
+      "evaluation_start": "2016-07-25",
+      "evaluation_end": "2026-07-27",
+      "trading_days": 2516,
+      "warmup_rows": 1273,
+      "sources": {
+        "market_prices": "Nasdaq historical API",
+        "ndx": "FRED NASDAQ100",
+        "credit": "HYG/IEF market proxy for 10-year scores; FRED BAMLH0A0HYM2 retained when available and lagged 1 day",
+        "cash": "FRED DGS3MO lagged one day, less 0.1350% annual proxy expense",
+        "volatility": "Cboe VXN/VIX/VIX3M histories"
+      },
+      "latest_dates": {
+        "qqq": "2026-07-27",
+        "tqqq": "2026-07-27",
+        "ndx": "2026-07-27",
+        "vxn": "2026-07-27",
+        "credit": "2026-07-24",
+        "cash_yield": "2026-07-24"
+      }
+    },
+    "enriched": {
+      "sources": {
+        "fred": {
+          "hy_spread_enriched": "BAMLH0A0HYM2",
+          "ccc_spread": "BAMLH0A3HYC",
+          "nfci": "NFCI",
+          "dgs2": "DGS2",
+          "real_yield_10y": "DFII10"
+        },
+        "cboe": {
+          "vvix_close": "VVIX",
+          "skew_close": "SKEW",
+          "vix9d_close": "VIX9D",
+          "vix6m_close": "VIX6M"
+        }
+      },
+      "latest_dates": {
+        "hy_spread_enriched": "2026-07-24",
+        "ccc_spread": "2026-07-24",
+        "nfci": "2026-07-17",
+        "dgs2": "2026-07-24",
+        "real_yield_10y": "2026-07-24",
+        "vvix_close": "2026-07-27",
+        "skew_close": "2026-07-27",
+        "vix9d_close": "2026-07-27",
+        "vix6m_close": "2026-07-27"
+      },
+      "causal_alignment": {
+        "hy_spread_enriched": 1,
+        "ccc_spread": 1,
+        "nfci": 3,
+        "dgs2": 1,
+        "real_yield_10y": 1,
+        "vvix_close": 0,
+        "skew_close": 0,
+        "vix9d_close": 0,
+        "vix6m_close": 0
+      },
+      "revision_warning": "NFCI history is publication-lagged but uses the latest revised vintage; it is a research diagnostic, not vintage-perfect data."
+    }
   }
 }

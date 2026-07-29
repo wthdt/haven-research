@@ -18,10 +18,13 @@ if str(HERMES_INTEGRATION) not in sys.path:
 from haven_market_model import register  # noqa: E402
 from haven_market_model.tools import (  # noqa: E402
     _decision,
+    _PENDING_LEDGER,
+    _CONFIRMED_LEDGER,
+    _read_ledger,
+    _write_ledger,
     close_update_once_with_ledger,
     format_close_message,
     handle_model_status,
-    write_delivery_ledger,
 )
 
 
@@ -142,17 +145,30 @@ class HermesAdapterTests(unittest.TestCase):
                     "haven_market_model.tools._state_dir",
                     return_value=state,
                 ),
+                # No cron job exists → _read_job_delivery_status() returns None
+                patch(
+                    "haven_market_model.tools._cron_jobs_path",
+                    return_value=None,
+                ),
             ):
+                # ── First call: writes pending ledger, outputs message ──
                 first = close_update_once_with_ledger(now_et=test_et)
-                second = close_update_once_with_ledger(now_et=test_et)
-        # First call should return signal_date||message
-        self.assertIn("避风港 v0.4 收盘更新", first)
-        self.assertIn("||", first)
-        # Second call: ledger not yet written — still returns message
-        # (ledger is written by caller after delivery)
-        self.assertIn("避风港 v0.4 收盘更新", second)
+                self.assertIn("避风港 v0.4 收盘更新", first)
+                self.assertIn("||", first)
+                self.assertEqual(
+                    _read_ledger(_PENDING_LEDGER), "2026-07-28"
+                )
+                self.assertIsNone(_read_ledger(_CONFIRMED_LEDGER))
 
-        # After writing ledger, dedup kicks in
+                # ── Second call: pending exists, no cron job → retry ──
+                second = close_update_once_with_ledger(now_et=test_et)
+                self.assertIn("避风港 v0.4 收盘更新", second)
+                # Still pending (not promoted since no cron job to check)
+                self.assertEqual(
+                    _read_ledger(_PENDING_LEDGER), "2026-07-28"
+                )
+
+        # ── After confirmed ledger written → silent ──
         with tempfile.TemporaryDirectory() as temporary:
             state = Path(temporary)
             with (
@@ -165,9 +181,109 @@ class HermesAdapterTests(unittest.TestCase):
                     return_value=state,
                 ),
             ):
-                write_delivery_ledger("2026-07-28", now_et=test_et)
+                _write_ledger(_CONFIRMED_LEDGER, "2026-07-28")
                 third = close_update_once_with_ledger(now_et=test_et)
         self.assertEqual(third, "")
+
+    def test_delivery_failure_retry(self) -> None:
+        """Simulate: first run (pending), delivery fails, second run retries."""
+        snapshot = self._snapshot()
+        test_et = datetime(2026, 7, 28, 16, 20, tzinfo=ZoneInfo("America/New_York"))
+
+        with tempfile.TemporaryDirectory() as temporary:
+            state = Path(temporary)
+            with (
+                patch(
+                    "haven_market_model.tools._refresh_snapshot",
+                    return_value=snapshot,
+                ),
+                patch(
+                    "haven_market_model.tools._state_dir",
+                    return_value=state,
+                ),
+                # Simulate: cron job exists with delivery error
+                patch(
+                    "haven_market_model.tools._cron_jobs_path",
+                    return_value=state / "jobs.json",
+                ),
+            ):
+                # Create a fake jobs.json with delivery error
+                import json
+                fake_jobs = {
+                    "jobs": [{
+                        "name": "Haven close update",
+                        "last_delivery_error": "telegram: timeout",
+                        "last_run_at": "2026-07-28T16:20:00-04:00",
+                        "last_status": "ok",
+                    }]
+                }
+                (state / "jobs.json").write_text(
+                    json.dumps(fake_jobs), encoding="utf-8"
+                )
+
+                # First run: writes pending ledger
+                first = close_update_once_with_ledger(now_et=test_et)
+                self.assertIn("避风港 v0.4 收盘更新", first)
+
+                # Second run: pending exists, delivery_error set → retry
+                second = close_update_once_with_ledger(now_et=test_et)
+                self.assertIn("避风港 v0.4 收盘更新", second)
+                # Still pending (not promoted because error not cleared)
+                self.assertEqual(
+                    _read_ledger(_PENDING_LEDGER), "2026-07-28"
+                )
+                self.assertIsNone(_read_ledger(_CONFIRMED_LEDGER))
+
+    def test_delivery_success_promotes_to_confirmed(self) -> None:
+        """Simulate: first run (pending), next run finds delivery ok → silent."""
+        snapshot = self._snapshot()
+        test_et = datetime(2026, 7, 28, 16, 20, tzinfo=ZoneInfo("America/New_York"))
+
+        with tempfile.TemporaryDirectory() as temporary:
+            state = Path(temporary)
+            with (
+                patch(
+                    "haven_market_model.tools._refresh_snapshot",
+                    return_value=snapshot,
+                ),
+                patch(
+                    "haven_market_model.tools._state_dir",
+                    return_value=state,
+                ),
+                patch(
+                    "haven_market_model.tools._cron_jobs_path",
+                    return_value=state / "jobs.json",
+                ),
+            ):
+                import json
+
+                # First run: writes pending ledger
+                first = close_update_once_with_ledger(now_et=test_et)
+                self.assertIn("避风港 v0.4 收盘更新", first)
+                self.assertEqual(
+                    _read_ledger(_PENDING_LEDGER), "2026-07-28"
+                )
+
+                # Simulate Hermes cron delivery success (last_delivery_error = null)
+                fake_jobs = {
+                    "jobs": [{
+                        "name": "Haven close update",
+                        "last_delivery_error": None,
+                        "last_run_at": "2026-07-28T16:20:00-04:00",
+                        "last_status": "ok",
+                    }]
+                }
+                (state / "jobs.json").write_text(
+                    json.dumps(fake_jobs), encoding="utf-8"
+                )
+
+                # Second run: pending exists, delivery OK → promote to confirmed
+                second = close_update_once_with_ledger(now_et=test_et)
+                self.assertEqual(second, "")
+                self.assertIsNone(_read_ledger(_PENDING_LEDGER))
+                self.assertEqual(
+                    _read_ledger(_CONFIRMED_LEDGER), "2026-07-28"
+                )
 
     def test_low_put_coverage_triggers_data_guard_blocks_sell_put(self) -> None:
         """R_put_coverage=0.50 must BLOCKED sell_put, sell_call, insurance, panic."""

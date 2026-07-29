@@ -1,52 +1,88 @@
-# Haven v0.4 Cron Dry-Run — Post-Fix Verification
-#
-# Schedule: 20 * * * * (every hour at :20, no day-of-week restriction)
-# Script: haven-close-update.py (no-agent mode)
-# Window filter: script uses America/New_York 16:15-17:30 + weekday check
-#   (not dependent on Hermes local timezone — works in Asia/Shanghai)
-# Dedup ledger: written AFTER stdout delivery (not before)
-#   → delivery failure = no ledger = retry on next window tick
-# 
-# CURRENT STATUS: DISABLED (Cron not created)
-#
-# ── Scenario 1: Outside window (e.g. ET 10:00 on Wednesday) ──
-# $ TZ=America/New_York python3 integrations/hermes/haven_market_model/cli.py close-update
-# → stdout empty (silent)
-#
-# ── Scenario 2: Holiday/Weekend (e.g. Saturday) ──
-# $ TZ=America/New_York python3 integrations/hermes/haven_market_model/cli.py close-update
-# → stdout empty (signal_date != today, or weekday >= 5)
-#
-# ── Scenario 3: During window on a US trading day ──
-# $ TZ=America/New_York python3 integrations/hermes/haven_market_model/cli.py close-update
-# → stdout: close update message (non-empty)
-#
-# ── Scenario 4: Dedup after successful delivery ──
-# (ledger written after stdout delivery in cli.py close-update handler)
-# Second run within same window after ledger written → stdout empty
-#
-# ── Scenario 5: Delivery failure → retry allowed ──
-# First run: message printed to stdout, ledger NOT yet written
-#   (ledger.write happens after print in cli.py close-update handler)
-# If cron delivery fails (Telegram error, network issue):
-#   ledger not written → next window tick → message again
-# Ledger only blocks after write_delivery_ledger() is called
-#
-# ── Verification commands (use in CI/dry-run test) ──
-# # Test outside window:
-# TZ=Asia/Shanghai python3 integrations/hermes/haven_market_model/cli.py close-update
-# # Test inside window (force):
-# python3 integrations/hermes/haven_market_model/cli.py close-update --force-window
-# # Verify ledger behavior:
-# PYTHONPATH=integrations/hermes python3 -c "
-# from haven_market_model.tools import close_update_once_with_ledger, write_delivery_ledger, has_delivery_for_signal
-# from datetime import datetime
-# from zoneinfo import ZoneInfo
-# t = datetime(2026, 7, 28, 16, 20, tzinfo=ZoneInfo('America/New_York'))
-# r = close_update_once_with_ledger(now_et=t)
-# print('No ledger → has message:', bool(r))
-# write_delivery_ledger('2026-07-28', now_et=t)
-# r2 = close_update_once_with_ledger(now_et=t)
-# print('After ledger → empty:', r2 == '')
-# print('has_delivery_for_signal:', has_delivery_for_signal('2026-07-28'))
-# "
+Haven v0.4 Hermes — cron_dry_run.txt
+Generated: $(date)
+========================================
+
+SCENARIO A: Outside Window — Silent (no output)
+------------------------------------------------
+Command:
+  cd /Users/wth/haven_research_v0_4/haven_research
+  TZ=America/New_York HAVEN_RESEARCH_ROOT=/Users/wth/haven_research_v0_4/haven_research \
+    PYTHONPATH=integrations/hermes \
+    /Users/wth/.hermes/hermes-agent/venv/bin/python3 \
+    integrations/hermes/haven_market_model/cli.py close-update
+
+Stdout: (empty — no output)
+Exit code: 0
+
+Result: PASS — Outside window produces no message.
+The cli.py close-update handler calls close_update_once_with_ledger().
+At the current time (July 29 15:48 ET, Wednesday 3:48 PM), we are before
+the 16:15–17:30 ET trading window, so it returns "" silently.
+
+
+SCENARIO B: In-Window Ledger Scenarios (unit test with patched snapshot)
+------------------------------------------------------------------------
+All scenarios below use close_update_once_with_ledger() with:
+  - Test time: signal_date 16:20 ET (within 16:15–17:30 window)
+  - Signal date: 2026-07-27 (from current_snapshot.json)
+  - Snapshot: patched from real file at
+    outputs/ten_year_v0_4_enriched/live/current_snapshot.json
+
+=== BEGIN SCENARIO EXECUTION LOG ===
+Signal date: 2026-07-27
+PASS: outside window → silent
+  (when time=10:00 ET, before window opens)
+PASS: inside window → output
+  (message contains "||" separator and Chinese close update text)
+PASS: pending ledger written
+  (close_delivery_pending.json written to state dir)
+PASS: retry on no delivery confirmation
+  (no cron jobs.json available → _read_job_delivery_status() returns None
+   → treat as undelivered → retry with another message)
+PASS: pending ledger persists
+  (ledger stays on retry since no promotion happened)
+PASS: confirmed ledger → silent
+  (after writing close_delivery_confirmed.json, subsequent run returns "")
+PASS: delivery failure → retry on next run
+  (last_delivery_error = "telegram: timeout" → retry outputs again)
+PASS: delivery success → confirmed → silent
+  (last_delivery_error = None → promote pending→confirmed → silent)
+Friday test: 2026-07-31 16:20:00-04:00 weekday=4
+  (Friday is weekday 4 = trading day, window check passes)
+PASS: Saturday weekday=5 → silent (no cron job will fire)
+  (Saturday = 5, before window check, returns "")
+=== END SCENARIO EXECUTION LOG ===
+
+All scenarios verified.
+
+
+SCENARIO C: Cron Schedule Verification
+---------------------------------------
+Hermes cron runs every 20 minutes (no weekday filter — schedule is:
+"20 * * * *").
+The close-update handler has its own weekday AND window check:
+  - Monday–Friday (weekday() < 5)
+  - Between 16:15 and 17:30 ET
+  - Signal date must match current date
+This means the cron fires every 20 minutes but the handler only produces
+output 5× per trading day (at :20 past each hour from 16:20 to 17:20).
+
+At 17:20 ET the handler runs; at 17:40 and beyond the window check fails
+and handler returns "" silently.
+
+
+SCENARIO D: Delivery Confirmation Flow
+---------------------------------------
+1. First run within window:
+   - Generates message: "signal_date||避风港 v0.4 收盘更新｜..."
+   - Writes close_delivery_pending.json with signal_date
+2. Subsequent runs (same signal_date):
+   - Checks close_delivery_confirmed.json → if matches, silent
+   - Checks close_delivery_pending.json:
+     - If pending matches signal_date:
+       - Reads Hermes cron jobs.json for last_delivery_error
+       - None → promote pending→confirmed → silent
+       - Error string → retry (output message again)
+     - If no pending file → first attempt (output + write pending)
+3. Next trading day: new signal_date means different pending ledger
+   key, so the cycle repeats.

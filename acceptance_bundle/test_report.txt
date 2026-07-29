@@ -9,6 +9,12 @@ test_option_chain_summary_uses_observed_quotes (test_enriched.HavenEnrichedTests
 test_put_and_call_richness_split_on_skew (test_enriched.HavenEnrichedTests.test_put_and_call_richness_split_on_skew) ... ok
 test_x_count_heat_detects_spike (test_enriched.HavenEnrichedTests.test_x_count_heat_detects_spike) ... ok
 test_close_message_and_deduplication (test_hermes_adapter.HermesAdapterTests.test_close_message_and_deduplication) ... ok
+test_delivery_failure_retry (test_hermes_adapter.HermesAdapterTests.test_delivery_failure_retry)
+Simulate: first run (pending), delivery fails, second run retries. ... ok
+test_delivery_success_promotes_to_confirmed (test_hermes_adapter.HermesAdapterTests.test_delivery_success_promotes_to_confirmed)
+Simulate: first run (pending), next run finds delivery ok → silent. ... ok
+test_low_put_coverage_triggers_data_guard_blocks_sell_put (test_hermes_adapter.HermesAdapterTests.test_low_put_coverage_triggers_data_guard_blocks_sell_put)
+R_put_coverage=0.50 must BLOCKED sell_put, sell_call, insurance, panic. ... ok
 test_plugin_registers_tools_skill_and_command (test_hermes_adapter.HermesAdapterTests.test_plugin_registers_tools_skill_and_command) ... ok
 test_status_handler_returns_json_and_preserves_no_trade_gate (test_hermes_adapter.HermesAdapterTests.test_status_handler_returns_json_and_preserves_no_trade_gate) ... ok
 test_event_requires_trigger_and_deployment_is_cumulative (test_model.HavenModelTests.test_event_requires_trigger_and_deployment_is_cumulative) ... ok
@@ -24,6 +30,6 @@ test_monthly_expiry_respects_dte_window (test_options_proxy.HavenOptionProxyTest
 test_put_and_call_use_separate_premium_scores (test_options_proxy.HavenOptionProxyTests.test_put_and_call_use_separate_premium_scores) ... ok
 
 ----------------------------------------------------------------------
-Ran 24 tests in 1.466s
+Ran 27 tests in 1.273s
 
 OK
