@@ -1,0 +1,8 @@
+{
+  "model": "I insurance model v0.3",
+  "base_config": "haven_v0_2_options_proxy.yaml",
+  "overlay_config": "haven_v0_3_insurance_model.yaml",
+  "historical_option_chain_used": false,
+  "paper_or_live_enabled": false,
+  "trading_days": 2514
+}

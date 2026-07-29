@@ -1,0 +1,41 @@
+{
+  "warmup_start": "2011-07-01",
+  "evaluation_start": "2016-07-25",
+  "evaluation_end": "2026-07-24",
+  "trading_days": 2515,
+  "warmup_rows": 1273,
+  "sources": {
+    "market_prices": "Nasdaq historical API",
+    "ndx": "FRED NASDAQ100",
+    "credit": "HYG/IEF market proxy for 10-year scores; FRED BAMLH0A0HYM2 retained when available and lagged 1 day",
+    "cash": "FRED DGS3MO lagged one day, less 0.1350% annual proxy expense",
+    "volatility": "Cboe VXN/VIX/VIX3M histories"
+  },
+  "latest_dates": {
+    "qqq": "2026-07-24",
+    "tqqq": "2026-07-24",
+    "ndx": "2026-07-27",
+    "vxn": "2026-07-27",
+    "credit": "2026-07-24",
+    "cash_yield": "2026-07-24"
+  },
+  "reference_sleeve_nav": 500000.0,
+  "options_proxy": {
+    "historical_option_chain_used": false,
+    "model": "VXN锚定Black-Scholes期权代理；不是历史期权链",
+    "pricing": "Black-Scholes daily mark with VXN anchor",
+    "signal_delay": "one trading day",
+    "contract_multiplier": 100,
+    "commission_per_contract_per_leg": 0.65,
+    "base_iv_multiplier": 1.0,
+    "base_spread_multiplier": 1.0,
+    "main_insurance_structure": "put_spread",
+    "early_assignment": "economic close/expiry proxy; exact American early assignment is not reconstructed"
+  },
+  "model_constraints": {
+    "production_workflow_modified": false,
+    "paper_or_live_enabled": false,
+    "outputs_latest_modified": false,
+    "tqqq_status": "stress research only"
+  }
+}

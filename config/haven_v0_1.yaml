@@ -1,0 +1,83 @@
+strategy:
+  name: "避风港全周期策略 v0.1"
+  research_only: true
+  evaluation_start: "2016-07-25"
+  evaluation_end: "2026-07-24"
+  warmup_start: "2011-07-01"
+  initial_nav: 100000.0
+
+data:
+  execution_symbols: ["QQQ", "TQQQ", "BIL"]
+  context_symbols: ["RSP", "SPY", "HYG", "IEF"]
+  nasdaq_asset_class: "etf"
+  fred:
+    ndx: "NASDAQ100"
+    high_yield_spread: "BAMLH0A0HYM2"
+    cash_yield: "DGS3MO"
+  cboe:
+    vxn: "VXN"
+    vix: "VIX"
+    vix3m: "VIX3M"
+
+scores:
+  percentile_window: 1260
+  percentile_min_periods: 252
+  shorter_history_min_periods: 63
+  smoothing_days: 3
+  coverage_threshold: 0.80
+
+thresholds:
+  panic_trigger: 50.0
+  panic_single_day_trigger: 70.0
+  panic_price_module_min: 40.0
+  panic_exit: 30.0
+  panic_exit_days: 10
+  stabilization_1: 35.0
+  stabilization_2: 55.0
+  recovery: 70.0
+  greed: 60.0
+  exhaustion: 40.0
+  downgrade_confirmation_days: 2
+  retest_days_without_new_low: 5
+
+capital_splits:
+  split_35_20_45:
+    baseline: 0.35
+    put_bucket: 0.20
+    panic_reserve: 0.45
+  split_50_15_35:
+    baseline: 0.50
+    put_bucket: 0.15
+    panic_reserve: 0.35
+  split_60_10_30:
+    baseline: 0.60
+    put_bucket: 0.10
+    panic_reserve: 0.30
+
+deployment:
+  PANIC_ACCELERATING: 0.00
+  PANIC_STABILIZING_1: 0.15
+  PANIC_STABILIZING_2: 0.40
+  RECOVERY_EARLY: 0.70
+  RECOVERY_RETESTED: 1.00
+  extreme_trial_panic_score: 80.0
+  extreme_trial_event_fraction: 0.05
+  extreme_trial_nav_cap: 0.01
+
+backtest:
+  transaction_cost_bps: 5.0
+  annualization_days: 252
+  cvar_alpha: 0.05
+  reset_tactical_sleeve_on_event_exit: true
+  credit_data_lag_days: 1
+  cash_proxy_expense_ratio: 0.00135
+  sensitivity_panic_triggers: [45.0, 50.0, 55.0]
+  sensitivity_stabilization_1: [30.0, 35.0, 40.0]
+
+risk_research_defaults:
+  account_standard_stress_loss_limit: 0.15
+  normal_risk_factor_stress_loss_limit: 0.06
+  leveraged_etf_stress_loss_limit: 0.04
+  minimum_free_cash: 0.25
+  qqq_stress_drop: 0.35
+  tqqq_stress_drop: 0.65

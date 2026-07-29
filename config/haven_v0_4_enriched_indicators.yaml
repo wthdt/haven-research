@@ -1,0 +1,139 @@
+strategy:
+  name: "避风港全周期策略 v0.4（指标增强与N影子层）"
+  research_only: true
+  base_config: "haven_v0_2_options_proxy.yaml"
+  insurance_overlay: "haven_v0_3_insurance_model.yaml"
+
+data:
+  # QQEW 是 Nasdaq-100 等权代理，只用于十年因果回测。它不冒充真实的
+  # 成分股涨跌家数、站上均线比例或新高/新低数据。
+  context_symbols: ["RSP", "SPY", "QQEW", "HYG", "IEF"]
+
+enriched_data:
+  fred:
+    hy_spread_enriched:
+      series_id: "BAMLH0A0HYM2"
+      lag_trading_days: 1
+      fill_limit: 7
+    ccc_spread:
+      series_id: "BAMLH0A3HYC"
+      lag_trading_days: 1
+      fill_limit: 7
+    nfci:
+      series_id: "NFCI"
+      # 周五观察值通常在次周三发布，延迟3个交易日才可用于评分。
+      lag_trading_days: 3
+      fill_limit: 10
+    dgs2:
+      series_id: "DGS2"
+      lag_trading_days: 1
+      fill_limit: 7
+    real_yield_10y:
+      series_id: "DFII10"
+      lag_trading_days: 1
+      fill_limit: 7
+  cboe:
+    vvix_close:
+      index_name: "VVIX"
+      lag_trading_days: 0
+      fill_limit: 3
+    skew_close:
+      index_name: "SKEW"
+      lag_trading_days: 0
+      fill_limit: 3
+    vix9d_close:
+      index_name: "VIX9D"
+      lag_trading_days: 0
+      fill_limit: 3
+    vix6m_close:
+      index_name: "VIX6M"
+      lag_trading_days: 0
+      fill_limit: 3
+
+enriched_scores:
+  weights:
+    P:
+      base: 0.70
+      breadth: 0.15
+      liquidity: 0.10
+      tail: 0.05
+    S:
+      base: 0.75
+      breadth: 0.15
+      liquidity: 0.10
+    G:
+      base: 0.85
+      breadth: 0.10
+      tail: 0.05
+    E:
+      base: 0.75
+      breadth: 0.20
+      tail: 0.05
+  recovery_gate:
+    enabled: true
+    early:
+      breadth_recovery_min: 55.0
+      liquidity_relief_min: 30.0
+      tail_stress_max: 85.0
+    retested:
+      breadth_recovery_min: 60.0
+      liquidity_relief_min: 40.0
+      tail_stress_max: 75.0
+      minimum_days_from_low: 10
+  promotion:
+    required_minimum_coverage: 0.80
+    require_full_sample_positive_ablation: true
+    require_both_subperiods: true
+    require_all_named_stress_windows: true
+    automatic_promotion: false
+
+options_proxy:
+  cash_secured_put:
+    # 权利金便宜/昂贵由 R_put 决定；E 已明显衰竭时不再用卖 Put
+    # 承担额外下行与接货风险。
+    entry_e_max: 55.0
+
+live_shadow:
+  network:
+    # Shadow 数据失败时快速进入 DATA_GUARD，不允许单一外部接口让
+    # 收盘任务无界等待。
+    request_timeout_seconds: 8
+    request_retries: 1
+    breadth_batch_timeout_seconds: 60
+    breadth_max_workers: 16
+  real_breadth:
+    enabled: true
+    source: "Nasdaq-100 current member list plus member histories"
+    affects_historical_backtest: false
+    minimum_member_coverage: 0.85
+  qqq_option_chain:
+    enabled: true
+    source: "Nasdaq delayed QQQ option-chain snapshot"
+    affects_historical_backtest: false
+    implied_vol_model: "Black-Scholes diagnostic inversion"
+    target_dte_short: 30
+    target_dte_long: 90
+    target_put_delta: 0.25
+  news_model:
+    model_code: "N"
+    mode: "shadow"
+    affects_position: false
+    affects_P_S_G_E_R_I: false
+    minimum_live_days_before_review: 30
+    x_topics:
+      - "($QQQ OR Nasdaq) lang:en -is:retweet"
+      - "($TQQQ OR \"leveraged QQQ\") lang:en -is:retweet"
+      - "(VIX OR \"market crash\" OR \"buy the dip\") lang:en -is:retweet"
+      - "(Fed OR FOMC OR CPI OR NFP OR recession) lang:en -is:retweet"
+      - "($NVDA OR semiconductor OR AI) lang:en -is:retweet"
+      - "($DRAM OR HBM OR Micron OR \"SK Hynix\") lang:en -is:retweet"
+
+guardrails:
+  historical_real_option_chain_used: false
+  current_chain_must_not_backfill_history: true
+  news_must_not_change_positions: true
+  all_close_signals_execute_next_trading_day: true
+  modify_production_workflow: false
+  modify_shadow_paper_live: false
+  write_outputs_latest: false
+  tqqq_paper_live_allowed: false

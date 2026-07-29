@@ -1,0 +1,89 @@
+=== hermes skills list output ===
+(truncated to show haven-market-risk line only)
+
+│ haven-market-risk       │                      │ local   │ local   │ enabled │
+
+Full output shows 97 enabled skills, haven-market-risk listed with
+source=local, status=enabled. Skill installed at ~/.hermes/skills/haven-market-risk/
+
+=== SKILL.md content ===
+
+---
+name: haven-market-risk
+description: Use the deterministic Haven v0.4 P/S/G/E/R/I/N model to answer current market-state, panic/recovery, premium, insurance, and TQQQ covered-call questions. Use the plugin tools for every numeric score, current-state update, backtest, or option candidate; never recreate scores from prose or guess live quotes.
+version: 0.4.0
+author: zizi
+license: Proprietary
+platforms: [linux, macos]
+metadata:
+  hermes:
+    tags: [Finance, Risk, Options, TQQQ, Nasdaq]
+    requires_tools:
+      - haven_model_status
+---
+
+# Haven Market Risk
+
+Use the plugin as the source of truth. Keep the engine deterministic and the
+language model interpretive.
+
+## Procedure
+
+1. For current `P/S/G/E/R/I/N` values, call `haven_model_status`.
+2. Set `refresh=true` only after the US close or when the user explicitly asks
+   for fresh data. Otherwise report the latest completed close and its date.
+3. Lead with `DATA_GUARD` whenever the tool reports it. Do not derive a signal
+   from partial data.
+4. Apply decisions in this order:
+   `DATA_GUARD` → hard risk breach → panic/recovery state → risk warning →
+   greed/exhaustion/premium.
+5. For TQQQ Calls, call `haven_screen_tqqq_calls` with the actual share count,
+   cost basis, and realized historical premium when known. Use seller Bid, not
+   Ask, when describing obtainable premium.
+6. For historical evidence, call `haven_backtest_v04`. Rerun only when asked.
+7. When reporting scores, include the `calculation_audit` breakdown to show
+   how each score is constructed from its component indicators. Lead with
+   the final score, but cite component-level evidence when the user asks
+   for detail or when a score is near a threshold boundary.
+8. Before enabling a cron job or declaring a deployment "done", verify:
+   a. The delivery ledger is confirmed (not just pending)
+   b. The cron window (16:15-17:30 ET) and weekday filter work in both
+      America/New_York and Asia/Shanghai timezones
+   c. A delivery-failure retry produces output again on the next tick
+
+## Output
+
+Report:
+- signal date and next-trading-day effective timing;
+- each score, coverage, and state;
+- the model action for panic reserve, Put, Call, and insurance;
+- the reason a gate is open or closed;
+- real breadth and option-chain shadow status when relevant.
+
+For a Call candidate, include expiry, strike, seller net credit, Delta, DTE,
+spread, open interest, upside to strike, effective exit price, and assignment
+economics relative to cost.
+
+## Calculation Audit
+
+Every `haven_model_status` and `haven_refresh_close` response includes a
+`calculation_audit` key with per-score breakdowns (P/S/G/E/R/R_put/R_call/I).
+
+## Delivery Confirmation (Cron)
+
+The cron job (haven-close-update.py) uses a two-phase ledger pattern:
+- PENDING ledger written AFTER stdout delivery
+- CONFIRMED ledger promoted when Hermes job shows last_delivery_error=None
+  AND last_run_at advanced past pending snapshot
+
+## Guardrails
+
+- Keep v0.4 in research/Shadow mode
+- Never place, stage, or construct a broker order
+- Never promote TQQQ or Covered Call to Paper/Live
+- Current breadth and option chains are live snapshots, not historical
+- N stays non-executable for 30 live days
+- Preserve close-to-next-trading-day signal delay
+
+=== Platform ===
+platforms: [linux, macos] — verified on macOS (Darwin)

@@ -1,0 +1,36 @@
+{
+  "generated_at_et": "2026-07-29 11:31:45.181678-04:00",
+  "research_only": true,
+  "affects_paper_or_live": false,
+  "affects_positions": false,
+  "model": {
+    "status": "DATA_GUARD",
+    "error": "RuntimeError: 下载失败：https://fred.stlouisfed.org/graph/fredgraph.csv?id=NASDAQ100"
+  },
+  "real_breadth_shadow": {
+    "status": "LIVE_SHADOW_DATA_GUARD",
+    "error": "RuntimeError: 下载失败：https://api.nasdaq.com/api/quote/list-type/nasdaq100",
+    "historical_backtest_eligible": false
+  },
+  "real_qqq_chain_shadow": {
+    "status": "LIVE_CHAIN_DATA_GUARD",
+    "error": "RuntimeError: 下载失败：https://api.nasdaq.com/api/quote/QQQ/option-chain?assetclass=etf&fromdate=2026-07-29&todate=2026-12-15&callput=callput&money=all&type=all&limit=5000",
+    "historical_backtest_eligible": false
+  },
+  "N_news_shadow": {
+    "N": null,
+    "N_coverage": 0.0,
+    "N_status": "SHADOW_NO_DATA",
+    "N_direction": "UNKNOWN",
+    "N_affects_position": false,
+    "components": {},
+    "x": {
+      "status": "AUTH_NOT_CONFIGURED",
+      "x_heat": null,
+      "coverage": 0.0,
+      "topic_count": 6,
+      "affects_position": false
+    },
+    "minimum_live_days_before_review": 30
+  }
+}

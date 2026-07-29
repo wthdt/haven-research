@@ -1,0 +1,30 @@
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│                         Scheduled Jobs                                  │
+└─────────────────────────────────────────────────────────────────────────┘
+
+  f35210e36a81 [active]
+    Name:      港股资金面-每周更新
+    Schedule:  0 8 * * 1
+    Repeat:    ∞
+    Next run:  2026-08-03T08:00:00+08:00
+    Deliver:   origin
+    Script:    weekly_market_flow.sh
+    Workdir:   /Users/wth/ai_investment_platform_v1
+    Last run:  2026-07-27T08:21:17.517996+08:00  ok
+
+  bc858260415c [active]
+    Name:      微盘创新药数据库周更新
+    Schedule:  0 9 * * 1
+    Repeat:    ∞
+    Next run:  2026-08-03T09:00:00+08:00
+    Deliver:   origin
+    Workdir:   /Users/wth/ai_investment_platform_v1
+    Last run:  2026-07-27T09:39:58.856443+08:00  ok
+
+  21a2ff0777f1 [active]
+    Name:      每日Triple Strategy Shadow (09:00)
+    Schedule:  0 9 * * 1-5
+    Repeat:    ∞
+    Next run:  2026-07-30T09:00:00+08:00
+    Deliver:   origin
