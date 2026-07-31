@@ -70,6 +70,14 @@ Delta约 `-0.20` 的 Protective Put，单次净保费上限为策略净值
 请求失败或整批超时必须进入 `DATA_GUARD`，不得用猜测值补齐，也不得因此
 生成交易动作。研究回测的默认下载参数保持不变。
 
+实时 Shadow 对 NDX 收盘价采用一条受控的尾部补全路径：FRED
+`NASDAQ100` 仍是历史权威序列；仅当 Nasdaq 官方 NDX 历史接口与 FRED
+至少有 3 个重叠交易日、且收盘价最大绝对差不超过 0.02 点时，才追加
+FRED 最新日期之后的 Nasdaq 收盘价，不覆盖任何 FRED 历史值。强制刷新时
+若 FRED 暂时不可访问，可显式使用已有缓存继续计算，并在快照
+`refresh_status` 中披露；缓存不存在、重叠不足或数值不一致仍进入
+`DATA_GUARD`。
+
 ## 运行
 
 ```bash
@@ -119,7 +127,8 @@ Cron 每个工作日每小时的第20分钟检查一次，但只有美东时间
 ## 数据
 
 - QQQ、TQQQ、RSP、SPY、HYG、IEF、BIL：Nasdaq 历史行情和分红；
-- 纳斯达克 100：FRED `NASDAQ100`；
+- 纳斯达克 100：FRED `NASDAQ100` 历史序列；实时尾部经重叠校验后使用
+  Nasdaq 官方 NDX 历史收盘；
 - 信用代理：HYG/IEF；FRED `BAMLH0A0HYM2` 只作近年诊断；
 - 现金收益：FRED `DGS3MO` 滞后一个交易日并扣除 BIL 近似费率；
 - VXN、VIX、VIX3M：Cboe 官方历史文件。

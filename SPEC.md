@@ -27,7 +27,7 @@
 
 - 最新远端分支 HEAD：`799624537aaf21a8a89fba309bb4498b792e5989`。
 - 当前代码提交：`62d00e2`。
-- 单元与集成测试：原始迁移包独立复跑 `37/37` 通过；迁移后的网络超时优化为 `40/40` 通过。
+- 单元与集成测试：原始迁移包独立复跑 `37/37` 通过；迁移后的网络超时与 NDX 尾部校验优化为 `44/44` 通过。
 - 六个正式入口：独立复跑全部退出码为 `0`。
 - v0.3 基线：
   - CAGR：`0.1044407284611435`
@@ -184,7 +184,7 @@
 |---|---|---:|---:|
 | QQQ/TQQQ/RSP/SPY/QQEW/HYG/IEF/BIL OHLCV | Nasdaq Historical API | 0 | 不跨缺失交易日造价 |
 | ETF 分红 | Nasdaq Dividends API | 除息日计入 | 无 |
-| Nasdaq-100 | FRED `NASDAQ100` | 0 | 3 日 |
+| Nasdaq-100 | FRED `NASDAQ100` 历史序列；实时尾部为重叠校验后的 Nasdaq NDX 官方历史收盘 | 0 | 3 日 |
 | 高收益债 OAS | FRED `BAMLH0A0HYM2` | 1 交易日 | 7 日 |
 | CCC OAS | FRED `BAMLH0A3HYC` | 1 交易日 | 7 日 |
 | NFCI | FRED `NFCI` | 3 交易日 | 10 日 |
@@ -198,6 +198,18 @@
 | X 帖子计数 | X API | 最近 7 天小时计数 | 无授权时为空 |
 
 NFCI 使用最新修订历史，并非严格 vintage 数据；必须保留修订偏差警告。
+
+实时 Shadow 的 NDX 尾部补全必须同时满足：
+
+1. FRED `NASDAQ100` 非空且继续保留为历史权威序列；
+2. Nasdaq NDX 与 FRED 至少有 3 个非空重叠交易日；
+3. 重叠日收盘价最大绝对差不超过 0.02 指数点；
+4. 只追加 FRED 最新非空日期之后的 Nasdaq 行，不改写 FRED 历史；
+5. 任一校验失败立即进入 `DATA_GUARD`。
+
+强制刷新时允许由配置显式启用 FRED 现有缓存回退。快照必须记录每条
+FRED 序列的刷新状态以及 NDX 尾部的来源、重叠行数、最大差异和追加行数；
+缓存不存在时不得伪造数据。
 
 ---
 
@@ -1214,7 +1226,8 @@ python3 -m unittest discover -s tests -v
 ### 14.2 每日 Shadow
 
 1. 收盘后运行 `run_live_shadow_v0_4.py`；
-2. 更新正式价格、FRED、Cboe 数据；
+2. 更新正式价格、FRED、Cboe 数据；若 FRED 的 NDX 尾部落后，则按
+   5.3 节的重叠校验规则追加 Nasdaq 官方 NDX 收盘；
 3. 计算 P/S/G/E/R/I；
 4. 生成当前真实宽度；
 5. 生成延迟 QQQ 链摘要；
@@ -1229,6 +1242,8 @@ python3 -m unittest discover -s tests -v
 - 单请求尝试次数：`1` 次；
 - 成分股宽度整批超时：`60` 秒；
 - 成分股宽度并发数：`16`；
+- FRED 强制刷新失败时仅允许显式回退到已有缓存，并披露刷新状态；
+- NDX 尾部仅允许在至少 3 个重叠日且最大差异不超过 0.02 点时追加；
 - 请求失败或整批超时：进入 `DATA_GUARD`，不得猜测、补齐或生成交易动作。
 
 ### 14.3 Hermes
@@ -1716,7 +1731,7 @@ function CLOSE_UPDATE_WITH_LEDGER(now_et):
 2. `research_only=true`；
 3. Paper/Live、券商和自动订单保持不存在；
 4. Haven Cron 不创建、不启用；
-5. 40 项现有测试全部通过；
+5. 44 项现有测试全部通过；
 6. 六个正式入口退出码全部为 `0`；
 7. v0.3 指标复现到报告显示精度：
    - CAGR `10.4441%`
@@ -1943,6 +1958,7 @@ function CLOSE_UPDATE_WITH_LEDGER(now_et):
 - `data/raw/nasdaq100_members/` 全部成员历史；
 - QQQ/TQQQ 当前延迟期权链；
 - FRED `NASDAQ100/BAMLH0A0HYM2/BAMLH0A3HYC/NFCI/DGS2/DGS3MO/DFII10`；
+- Nasdaq 官方 NDX 历史尾部缓存（若实时 Shadow 已生成）；
 - Cboe `VXN/VIX/VIX3M/VVIX/SKEW/VIX9D/VIX6M`。
 
 ### 23.5 回测结果和图表

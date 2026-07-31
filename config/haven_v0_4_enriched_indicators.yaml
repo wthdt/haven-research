@@ -94,6 +94,15 @@ options_proxy:
     entry_e_max: 55.0
 
 live_shadow:
+  market_data:
+    # FRED 仍是 NDX 十年历史权威源。收盘刷新时，如果其免密 CSV
+    # 接口不可用，可读取现有官方缓存，并仅用 Nasdaq NDX 官方接口
+    # 补齐缓存末尾之后的日期。重叠样本不一致时必须 DATA_GUARD。
+    allow_fred_cache_on_refresh_error: true
+    supplement_ndx_tail: true
+    ndx_tail_lookback_calendar_days: 45
+    ndx_minimum_overlap_rows: 3
+    ndx_maximum_overlap_difference: 0.02
   network:
     # Shadow 数据失败时快速进入 DATA_GUARD，不允许单一外部接口让
     # 收盘任务无界等待。

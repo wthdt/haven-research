@@ -197,6 +197,7 @@ def main() -> None:
         "HAVEN_FORCE_OPTION_CHAIN", "1"
     ) not in {"0", "false", "False"}
     network_config = config["live_shadow"]["network"]
+    market_data_config = config["live_shadow"]["market_data"]
     request_timeout_seconds = float(
         network_config["request_timeout_seconds"]
     )
@@ -229,6 +230,27 @@ def main() -> None:
             "breadth_max_workers": breadth_max_workers,
             "timeout_behavior": "DATA_GUARD",
         },
+        "market_data_policy": {
+            "fred_historical_authority": True,
+            "allow_fred_cache_on_refresh_error": bool(
+                market_data_config[
+                    "allow_fred_cache_on_refresh_error"
+                ]
+            ),
+            "supplement_ndx_tail": bool(
+                market_data_config["supplement_ndx_tail"]
+            ),
+            "ndx_tail_source": "Nasdaq NDX historical API",
+            "ndx_minimum_overlap_rows": int(
+                market_data_config["ndx_minimum_overlap_rows"]
+            ),
+            "ndx_maximum_overlap_difference": float(
+                market_data_config[
+                    "ndx_maximum_overlap_difference"
+                ]
+            ),
+            "mismatch_behavior": "DATA_GUARD",
+        },
     }
 
     try:
@@ -238,6 +260,27 @@ def main() -> None:
             force=force_market,
             request_retries=request_retries,
             request_timeout_seconds=request_timeout_seconds,
+            allow_fred_cache_on_refresh_error=bool(
+                market_data_config[
+                    "allow_fred_cache_on_refresh_error"
+                ]
+            ),
+            supplement_ndx_tail=bool(
+                market_data_config["supplement_ndx_tail"]
+            ),
+            ndx_tail_lookback_calendar_days=int(
+                market_data_config[
+                    "ndx_tail_lookback_calendar_days"
+                ]
+            ),
+            ndx_minimum_overlap_rows=int(
+                market_data_config["ndx_minimum_overlap_rows"]
+            ),
+            ndx_maximum_overlap_difference=float(
+                market_data_config[
+                    "ndx_maximum_overlap_difference"
+                ]
+            ),
         )
         data, enriched_metadata = attach_enriched_market_data(
             data,
@@ -246,6 +289,11 @@ def main() -> None:
             force=force_market,
             request_retries=request_retries,
             request_timeout_seconds=request_timeout_seconds,
+            allow_fred_cache_on_refresh_error=bool(
+                market_data_config[
+                    "allow_fred_cache_on_refresh_error"
+                ]
+            ),
         )
         scores, components, audit = build_enriched_scores(
             data,

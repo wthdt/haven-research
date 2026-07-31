@@ -156,6 +156,7 @@ def attach_enriched_market_data(
     force: bool = False,
     request_retries: int = 4,
     request_timeout_seconds: float = 45.0,
+    allow_fred_cache_on_refresh_error: bool = False,
 ) -> tuple[pd.DataFrame, dict[str, Any]]:
     """Attach official, date-lagged diagnostics used by the v0.4 overlay."""
 
@@ -165,6 +166,7 @@ def attach_enriched_market_data(
     raw_dir.mkdir(parents=True, exist_ok=True)
     index = pd.DatetimeIndex(result.index)
     latest_dates: dict[str, str | None] = {}
+    fred_refresh_status: dict[str, str] = {}
 
     for output_name, spec in enriched.get("fred", {}).items():
         series = fetch_fred_series(
@@ -173,6 +175,12 @@ def attach_enriched_market_data(
             force=force,
             request_retries=request_retries,
             request_timeout_seconds=request_timeout_seconds,
+            allow_cache_on_refresh_error=(
+                allow_fred_cache_on_refresh_error
+            ),
+        )
+        fred_refresh_status[output_name] = str(
+            series.attrs.get("refresh_status", "UNKNOWN")
         )
         result[output_name] = _aligned_lagged(
             series,
@@ -219,6 +227,9 @@ def attach_enriched_market_data(
             },
         },
         "latest_dates": latest_dates,
+        "refresh_status": {
+            "fred": fred_refresh_status,
+        },
         "causal_alignment": {
             name: int(spec.get("lag_trading_days", 1))
             for name, spec in enriched.get("fred", {}).items()
